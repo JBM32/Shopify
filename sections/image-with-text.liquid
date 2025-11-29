@@ -97,32 +97,24 @@
     }
 
     /* FIX: Prevent bio text box from overlapping circular profile image */
-    /* Disable overlap layout on mobile for artist pages */
-    .artist-bio-hero.image-with-text--overlap .image-with-text__text-item {
-      margin-top: 0 !important;
-    }
-
-    /* Force gap in grid to separate image and text */
-    .artist-bio-hero .image-with-text__grid {
-      gap: 3rem !important;
-      row-gap: 3rem !important;
-    }
-
-    .artist-bio-hero .image-with-text__media-item {
-      margin-bottom: 0 !important;
-      padding-bottom: 0 !important;
-    }
+    /* The grid has grid--gapless class which prevents gap property from working */
+    /* Solution: Add large padding to text content to push it away from image */
 
     .artist-bio-hero .image-with-text__text-item {
+      padding-top: 4rem !important;
       margin-top: 0 !important;
-      padding-top: 0 !important;
       transform: none !important;
     }
 
     .artist-bio-hero .image-with-text__content {
       margin-top: 0 !important;
-      padding-top: 1.5rem;
       transform: none !important;
+    }
+
+    /* Ensure circular image container has no extra bottom spacing */
+    .artist-bio-hero .image-with-text__media-item {
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
     }
 
     /* Ensure circular image is fully visible and not overlapped */
