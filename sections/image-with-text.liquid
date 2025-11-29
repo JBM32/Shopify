@@ -97,38 +97,40 @@
     }
 
     /* FIX: Prevent bio text box from overlapping circular profile image */
+    /* Disable overlap layout on mobile for artist pages */
+    .artist-bio-hero.image-with-text--overlap .image-with-text__text-item {
+      margin-top: 0 !important;
+    }
+
+    /* Force gap in grid to separate image and text */
+    .artist-bio-hero .image-with-text__grid {
+      gap: 3rem !important;
+      row-gap: 3rem !important;
+    }
+
     .artist-bio-hero .image-with-text__media-item {
-      position: relative;
-      z-index: 2;
-      margin-bottom: 3rem;
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
     }
 
     .artist-bio-hero .image-with-text__text-item {
-      position: relative;
-      z-index: 1;
-      margin-top: 3rem !important;
-      padding-top: 0;
+      margin-top: 0 !important;
+      padding-top: 0 !important;
+      transform: none !important;
     }
 
     .artist-bio-hero .image-with-text__content {
       margin-top: 0 !important;
       padding-top: 1.5rem;
-      overflow: visible;
+      transform: none !important;
     }
 
     /* Ensure circular image is fully visible and not overlapped */
     .artist-bio-hero .image-with-text__media {
-      position: relative;
-      z-index: 3;
       border-radius: 50%;
       overflow: hidden;
-      margin-bottom: 0;
-    }
-
-    /* Remove any negative margins that might cause overlap */
-    .artist-bio-hero .grid__item {
-      margin-top: 0;
-      padding-top: 0;
+      margin-bottom: 0 !important;
+      transform: none !important;
     }
   }
 
