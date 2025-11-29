@@ -26,25 +26,25 @@
   }
 
   /* Show/hide desktop vs mobile versions of URL + social bar */
-  .artist-website-link--desktop,
-  .artist-social-bar-wrapper--desktop {
-    display: none;
+  .artist-bio-hero .artist-website-link--desktop,
+  .artist-bio-hero .artist-social-bar-wrapper--desktop {
+    display: none !important;
   }
 
-  .artist-website-link--mobile,
-  .artist-social-bar-wrapper--mobile {
+  .artist-bio-hero .artist-website-link--mobile,
+  .artist-bio-hero .artist-social-bar-wrapper--mobile {
     display: block;
   }
 
   @media screen and (min-width: 750px) {
-    .artist-website-link--desktop,
-    .artist-social-bar-wrapper--desktop {
-      display: block;
+    .artist-bio-hero .artist-website-link--desktop,
+    .artist-bio-hero .artist-social-bar-wrapper--desktop {
+      display: block !important;
     }
 
-    .artist-website-link--mobile,
-    .artist-social-bar-wrapper--mobile {
-      display: none;
+    .artist-bio-hero .artist-website-link--mobile,
+    .artist-bio-hero .artist-social-bar-wrapper--mobile {
+      display: none !important;
     }
 
     /* On desktop, hide any artist URL that appears in the text (bio) column */
@@ -100,14 +100,15 @@
     .artist-bio-hero .image-with-text__media-item {
       position: relative;
       z-index: 2;
-      margin-bottom: 0;
-      padding-bottom: 0;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
     }
 
     .artist-bio-hero .image-with-text__text-item {
       position: relative;
       z-index: 1;
-      margin-top: 1rem;
+      margin-top: 0;
+      padding-top: 0;
     }
 
     .artist-bio-hero .image-with-text__content {
@@ -119,15 +120,16 @@
     /* Ensure circular image is fully visible and not overlapped */
     .artist-bio-hero .image-with-text__media {
       position: relative;
-      z-index: 2;
+      z-index: 3;
       border-radius: 50%;
       overflow: hidden;
+      margin-bottom: 0;
     }
 
     /* Remove any negative margins that might cause overlap */
     .artist-bio-hero .grid__item {
       margin-top: 0;
-      margin-bottom: 0;
+      padding-top: 0;
     }
   }
 
