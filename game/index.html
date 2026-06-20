@@ -60,7 +60,7 @@
     <canvas id="game" width="480" height="270"></canvas>
     <div id="overlay">
       <h2 id="ov-title">PIXEL DASH</h2>
-      <p id="ov-text">Play as Three Tails, the three-tailed cat! Reach the flag, stomp enemies, grab coins, and snag power-ups.</p>
+      <p id="ov-text">Play as Three Tails, the three-tailed cat! Reach the flag, stomp the Zerox dogs, grab coins, and snag power-ups.</p>
       <button class="btn" id="ov-btn">PLAY</button>
       <p class="hint">← → / A D to move &nbsp;•&nbsp; Space / W / ↑ to jump</p>
     </div>
@@ -390,22 +390,36 @@ function drawPowerup(pu){
   ctx.textAlign="left";
 }
 
+// Zerox — tailless dog enemies
 function drawEnemy(e){
   if (!e.alive) return;
-  const x=px(e.x), y=py(e.y);
-  ctx.fillStyle="#b23a3a";
-  ctx.fillRect(x,y,e.w,e.h);
-  ctx.fillStyle="#7a2222"; ctx.fillRect(x,y+e.h-4,e.w,4);
-  // feet shuffle
+  const x=px(e.x), y=py(e.y), w=e.w, h=e.h;
+  const dir = e.vx<0 ? -1 : 1;
+  const body="#8a6b4a", dark="#5f4730", muzzle="#caa370";
+
+  // draw facing-right, then mirror around the sprite centre for facing-left
+  ctx.save();
+  ctx.translate(x + w/2, 0); ctx.scale(dir, 1); ctx.translate(-(x + w/2), 0);
+
+  ctx.fillStyle="#000"; ctx.fillRect(x-1,y-1,w+2,h+2); // outline
+  ctx.fillStyle=body;  ctx.fillRect(x,y,w,h);          // body
+  ctx.fillStyle=dark;  ctx.fillRect(x,y,w,3);          // darker back
+  ctx.fillStyle=dark;  ctx.fillRect(x+1,y,4,9);        // floppy ear (back)
+  ctx.fillStyle=muzzle;ctx.fillRect(x+w-6,y+8,7,6);    // snout (front)
+  ctx.fillStyle="#1a1a1a"; ctx.fillRect(x+w-1,y+9,2,3);// nose
+  ctx.fillStyle=dark;  ctx.fillRect(x+w-6,y+13,7,1);   // mouth
+  ctx.fillStyle="#fff"; ctx.fillRect(x+w-9,y+4,3,3);   // eye
+  ctx.fillStyle="#000"; ctx.fillRect(x+w-8,y+5,2,2);   // pupil
+  ctx.fillStyle=dark;  ctx.fillRect(x+w-9,y+3,4,1);    // brow
+  ctx.fillStyle="#e23d3d"; ctx.fillRect(x+w-11,y+10,2,h-12); // collar
+
+  // legs shuffle (NO tail)
   const f = Math.floor(Date.now()/120)%2;
-  ctx.fillStyle="#3a1010";
-  ctx.fillRect(x+ (f?2:4), y+e.h, 5,3);
-  ctx.fillRect(x+e.w-(f?7:9), y+e.h, 5,3);
-  // eyes
-  ctx.fillStyle="#fff"; ctx.fillRect(x+3,y+4,4,4); ctx.fillRect(x+e.w-7,y+4,4,4);
-  ctx.fillStyle="#000"; ctx.fillRect(x+ (e.vx<0?3:5),y+5,2,2); ctx.fillRect(x+e.w-(e.vx<0?7:5),y+5,2,2);
-  // angry brow
-  ctx.fillStyle="#5a1010"; ctx.fillRect(x+2,y+2,e.w-4,2);
+  ctx.fillStyle=dark;
+  ctx.fillRect(x+2,   y+h, 4, 3+(f?1:0));
+  ctx.fillRect(x+w-6, y+h, 4, 3+(f?0:1));
+
+  ctx.restore();
 }
 
 function drawFlag(){
@@ -570,7 +584,7 @@ function fit(){
   canvas.style.height = (finalW*H/W)+"px";
 }
 addEventListener("resize", fit); fit();
-showOverlay("PIXEL DASH", "Play as Three Tails, the three-tailed cat! Reach the flag — stomp enemies, grab coins, and collect power-ups: » Speed, ↑ High-Jump, ★ Invincibility.", "PLAY");
+showOverlay("PIXEL DASH", "Play as Three Tails, the three-tailed cat! Reach the flag — stomp the Zerox dogs, grab coins, and collect power-ups: » Speed, ↑ High-Jump, ★ Invincibility.", "PLAY");
 })();
 </script>
 </body>

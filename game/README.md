@@ -26,8 +26,8 @@ Jump height is variable — tap for a hop, hold for a full leap.
 Run to the **green flag** at the end of the level. Along the way:
 
 - **Coins (●)** — +10 points each.
-- **Enemies** — stomp them from above (+50) or get hit and lose a life. You
-  start with **3 lives (♥)**.
+- **Zerox (the dogs)** — stomp them from above (+50) or get hit and lose a
+  life. You start with **3 lives (♥)**.
 - **Power-ups** (timed, ~7–8s, shown in the HUD):
   - **» Speed** — run faster.
   - **↑ High-Jump** — jump higher.
@@ -52,7 +52,7 @@ Everything lives in one file (`index.html`):
   | `#`  | solid brick |
   | `=`  | grass platform |
   | `C`  | coin |
-  | `E`  | enemy |
+  | `E`  | Zerox (dog enemy) |
   | `S` / `J` / `V` | speed / jump / invincibility power-up |
   | `F`  | finish flag |
   | `P`  | player spawn |
