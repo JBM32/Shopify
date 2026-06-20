@@ -149,7 +149,25 @@ const BASS = [
   "C2",0,0,0,"C2",0,0,0,"G2",0,0,0,"G2",0,0,0,
   "A2",0,0,0,"A2",0,0,0,"F2",0,0,0,"G2",0,0,0
 ];
-const BPM = 132, STEP_DUR = 60/BPM/4; // seconds per sixteenth
+// dramatic minor-key synth riff for the boss fight (faster, sawtooth lead)
+const BOSS_LEAD = [
+  "A4",0,0,"A4",0,"C5",0,"B4",0,0,"A4",0,"G#4",0,0,0,
+  "A4",0,0,"A4",0,"D5",0,"C5",0,"E5",0,"D5",0,"C5",0,"B4",0
+];
+const BOSS_BASS = [
+  "D2",0,"D2",0,"D2",0,"D2",0,"D2",0,"D2",0,"D2",0,"D2",0,
+  "A#1",0,"A#1",0,"A#1",0,"A#1",0,"C2",0,"C2",0,"C2",0,"C2",0
+];
+const TRACKS = {
+  main: { lead:LEAD,      bass:BASS,      bpm:132, leadType:"square",   leadVol:0.05, bassVol:0.08 },
+  boss: { lead:BOSS_LEAD, bass:BOSS_BASS, bpm:152, leadType:"sawtooth", leadVol:0.05, bassVol:0.09 },
+};
+music.track = TRACKS.main;
+function setTrack(t){
+  if (!t || music.track === t) return;
+  music.track = t; music.step = 0;
+  if (actx) music.next = actx.currentTime + 0.06;
+}
 
 function tone(freq, t, dur, type, vol){
   const o = actx.createOscillator(), g = actx.createGain();
@@ -182,14 +200,16 @@ function kick(t){
   o.connect(g); g.connect(masterGain); o.start(t); o.stop(t + 0.18);
 }
 function scheduler(){
+  const tr = music.track;
+  const stepDur = 60/tr.bpm/4;
   while (music.next < actx.currentTime + 0.12){
     const s = music.step % 32, t = music.next;
-    const lf = noteFreq(LEAD[s]); if (lf) tone(lf, t, STEP_DUR*1.7, "square", 0.05);
-    const bf = noteFreq(BASS[s]); if (bf) tone(bf, t, STEP_DUR*2.2, "triangle", 0.08);
+    const lf = noteFreq(tr.lead[s]); if (lf) tone(lf, t, stepDur*1.7, tr.leadType, tr.leadVol);
+    const bf = noteFreq(tr.bass[s]); if (bf) tone(bf, t, stepDur*2.2, "triangle", tr.bassVol);
     if (s % 8 === 0) kick(t);                       // beats 1 & 3
     if (s % 8 === 4) drum(t, 1500, 0.07, 0.12);     // snare on 2 & 4
     if (s % 2 === 0) drum(t, 7000, 0.03, 0.05);     // hi-hat on eighths
-    music.next += STEP_DUR; music.step++;
+    music.next += stepDur; music.step++;
   }
   music.timer = setTimeout(scheduler, 25);
 }
@@ -219,39 +239,60 @@ function toggleMusic(){
 const TILE = 24;
 const GRAV = 0.55, MOVE = 0.7, FRICTION = 0.8, MAXVX = 4.2, JUMP = 11;
 
-// Level legend: # ground/brick, = platform, C coin, E enemy, S speed, J jump, V invincible, F flag, P player
-const LEVEL = [
-  "                                                                                            ",
-  "                                                                                            ",
-  "                                                                                            ",
-  "                       C C                                  V                               ",
-  "                      =====                       C C C                                     ",
-  "            C                          C C                ====            C C C              ",
-  "           ===            S           =====                          C C        C C    F    ",
-  "      C                  ===                       E              =======      =====   ###   ",
-  "     ===          C C          C C          E          C C  J                          ###   ",
-  "  P        E     =====   ###   =====   ###  =====================        E      ###     ###   ",
-  "##############   ###   ##############   ###############          ##############   ###########",
-  "##############   ###   ##############   ###############          ##############   ###########",
-];
-const COLS = Math.max(...LEVEL.map(r => r.length));
-const ROWS = LEVEL.length;
+// The map is generated so columns stay perfectly aligned. Legend:
+// # ground/brick, = platform, C coin, E enemy, S speed, J jump, V star,
+// B boss spawn, X boss barrier (removed on defeat), F flag, P player spawn.
+const ROWS = 12, MAP_W = 130;
+function buildMap(){
+  const g = Array.from({length:ROWS}, () => Array(MAP_W).fill(" "));
+  const set  = (r,c,ch) => { if (g[r] && c>=0 && c<MAP_W) g[r][c] = ch; };
+  const fill = (r,c1,c2,ch) => { for (let c=c1;c<=c2;c++) set(r,c,ch); };
+  // solid floor across the whole stage
+  fill(10,0,MAP_W-1,"#"); fill(11,0,MAP_W-1,"#");
+  // --- platforming run (cols 0..78) ---
+  set(9,3,"P");
+  set(9,14,"E"); set(9,34,"E"); set(9,52,"E"); set(9,70,"E");
+  fill(7,8,11,"=");  set(6,9,"C"); set(6,10,"C");
+  fill(8,16,20,"="); set(7,18,"S");
+  fill(6,24,28,"="); set(5,25,"C"); set(5,26,"C"); set(5,27,"C");
+  fill(7,32,36,"=");
+  fill(7,38,42,"="); set(6,40,"J");
+  fill(5,46,50,"="); set(4,47,"C"); set(4,48,"C");
+  fill(4,54,58,"="); set(3,56,"V");
+  fill(6,60,66,"="); set(5,62,"C"); set(5,64,"C");
+  fill(7,72,76,"=");
+  // --- boss arena (cols 88..118) ---
+  fill(6,92,95,"=");  fill(6,108,111,"=");          // ledges to leap from
+  set(4,98,"C"); set(4,100,"C"); set(4,102,"C");
+  set(6,100,"B");                                    // boss spawn marker
+  // --- barrier + relocated flag (cols 120, 126) ---
+  for (let r=0;r<=9;r++) set(r,120,"X");             // full-height gate
+  set(7,126,"F");
+  return g.map(row => row.join(""));
+}
+const LEVEL = buildMap();
+const COLS = MAP_W;
 const LEVEL_W = COLS * TILE, LEVEL_H = ROWS * TILE;
+const GROUND_TOP = (ROWS-2) * TILE;     // y of the floor surface
+const BOSS_W = 72, BOSS_H = 80;
 
 let solids, coins, enemies, powerups, flag, player, cam, state, score, lives, msg, msgT, particles;
+let boss, bossStarted, barriers, checkpoint;
 
 function rectAt(c, r){ return { x:c*TILE, y:r*TILE, w:TILE, h:TILE }; }
 
 function buildLevel(){
-  solids = []; coins = []; enemies = []; powerups = []; particles = [];
-  flag = null;
+  solids = []; coins = []; enemies = []; powerups = []; particles = []; barriers = [];
+  flag = null; boss = null; bossStarted = false;
   let spawn = { x: TILE*2, y: TILE*2 };
+  let bossCol = null;
   for (let r=0; r<ROWS; r++){
     const row = LEVEL[r];
     for (let c=0; c<row.length; c++){
       const ch = row[c];
       const x = c*TILE, y = r*TILE;
       if (ch === "#" || ch === "=") solids.push({...rectAt(c,r), type: ch==="="?"plat":"brick"});
+      else if (ch === "X"){ const s = {...rectAt(c,r), type:"barrier"}; solids.push(s); barriers.push(s); }
       else if (ch === "C") coins.push({ x:x+TILE/2, y:y+TILE/2, got:false, t:Math.random()*6 });
       else if (ch === "E") enemies.push({ x:x+3, y:y+2, w:TILE-6, h:TILE-4, vx:-0.9, vy:0, alive:true });
       else if (ch === "S") powerups.push({ x:x+4, y:y+4, w:TILE-8, h:TILE-8, kind:"speed", got:false, t:0 });
@@ -259,8 +300,20 @@ function buildLevel(){
       else if (ch === "V") powerups.push({ x:x+4, y:y+4, w:TILE-8, h:TILE-8, kind:"star", got:false, t:0 });
       else if (ch === "F") flag = { x:x+TILE/2, y:y, w:6, h:TILE*3 };
       else if (ch === "P") spawn = { x, y };
+      else if (ch === "B") bossCol = c;
     }
   }
+  if (bossCol != null){
+    const bx = bossCol*TILE + TILE/2 - BOSS_W/2;
+    const barrierX = barriers.length ? Math.min(...barriers.map(s=>s.x)) : LEVEL_W;
+    boss = {
+      x: bx, y: GROUND_TOP - BOSS_H, w: BOSS_W, h: BOSS_H,
+      dir: -1, hits: 0, phase: "hidden", timer: 150, flashT: 0, cooldown: 0,
+      alive: true, defeated: false,
+      arenaL: Math.max(0, bx - 12*TILE), arenaR: barrierX
+    };
+  }
+  checkpoint = { x: spawn.x, y: spawn.y };
   player = {
     x: spawn.x, y: spawn.y, w: 16, h: 22, vx:0, vy:0,
     onGround:false, face:1, anim:0,
@@ -377,6 +430,9 @@ function update(){
       } else damage(false);
     }
   }
+  // boss fight
+  updateBoss();
+
   // flag / win
   if (flag && aabb(p, flag)){ win(); }
 
@@ -396,12 +452,73 @@ function damage(fell){
   lives--; sfx.hurt(); p.hurtT = 90;
   spawnParticles(p.x+p.w/2, p.y+p.h/2, "#ff3d3d", 12);
   if (lives <= 0){ gameOver(); return; }
-  // respawn at level start
-  p.x = TILE*2; p.y = TILE*2; p.vx=0; p.vy=0;
+  // respawn at the latest checkpoint (level start, or the boss arena entrance)
+  p.x = checkpoint.x; p.y = checkpoint.y; p.vx=0; p.vy=0;
   p.speedT=p.jumpT=p.starT=0;
 }
 
 function msgFlash(t){ msg=t; msgT=45; }
+
+// ---------- Boss fight ----------
+function updateBoss(){
+  const b = boss, p = player;
+  if (!b || !b.alive) return;
+
+  // entering the arena starts the fight + dramatic music + a checkpoint
+  if (!bossStarted && p.x + p.w > b.arenaL){
+    bossStarted = true;
+    checkpoint = { x: b.arenaL + TILE, y: GROUND_TOP - p.h - 1 };
+    setTrack(TRACKS.boss);
+    msgFlash("⚠  ZEROX BOSS  ⚠");
+    beep(90,.25,"sawtooth",.09);
+  }
+  if (!bossStarted) return;
+
+  if (b.cooldown>0) b.cooldown--;
+  if (b.flashT>0) b.flashT--;
+
+  // camouflage cycle: hidden → warn → visible → hidden …
+  if (--b.timer <= 0){
+    if (b.phase === "hidden"){ b.phase = "warn"; b.timer = 36; beep(70,.18,"sawtooth",.06); }
+    else if (b.phase === "warn"){ b.phase = "visible"; b.timer = Math.max(54, 108 - b.hits*18); beep(520,.06,"square",.05); }
+    else { b.phase = "hidden"; b.timer = Math.max(80, 150 - b.hits*18); }
+  }
+
+  // prowl back and forth across the arena, faster as it gets hurt
+  const spd = 1.0 + b.hits*0.55;
+  b.x += b.dir*spd;
+  if (b.x < b.arenaL){ b.x = b.arenaL; b.dir = 1; }
+  if (b.x + b.w > b.arenaR){ b.x = b.arenaR - b.w; b.dir = -1; }
+
+  // player interaction
+  if (b.cooldown<=0 && aabb(p,b)){
+    const stomping = p.vy>0 && (p.y+p.h) - b.y < 28;
+    if (b.phase === "visible" && (stomping || p.starT>0)) bossHit();
+    else if (p.starT>0){ /* invisible + star: harmless, no hit */ }
+    else damage(false);
+  }
+}
+function bossHit(){
+  const b = boss, p = player;
+  b.hits++; p.vy = -11;                 // bounce off
+  b.phase = "hidden"; b.timer = 110; b.flashT = 20; b.cooldown = 22;
+  b.dir = p.x < b.x ? 1 : -1;           // bolt away from the player
+  score += 100; sfx.stomp();
+  spawnParticles(b.x+b.w/2, b.y+12, "#ff5d5d", 18);
+  if (b.hits >= 3) defeatBoss();
+  else msgFlash("BOSS HIT  "+b.hits+"/3");
+}
+function defeatBoss(){
+  const b = boss;
+  b.alive = false; b.defeated = true;
+  for (let i=0;i<46;i++)
+    spawnParticles(b.x+Math.random()*b.w, b.y+Math.random()*b.h, i%2?"#ff5d5d":"#ffcf3d", 1);
+  solids = solids.filter(s => s.type !== "barrier");   // open the gate to the flag
+  barriers = [];
+  score += 300; msgFlash("BOSS DEFEATED!");
+  setTrack(TRACKS.main);
+  sfx.win();
+}
 
 // ---------- Render ----------
 function clamp01(v){ return Math.max(0,Math.min(1,v)); }
@@ -438,6 +555,13 @@ function py(y){ return Math.round(y - cam.y); }
 
 function drawTile(s){
   const x=px(s.x), y=py(s.y);
+  if (s.type==="barrier"){
+    const pulse = 0.5 + 0.3*Math.sin(Date.now()/180 + s.y);
+    ctx.fillStyle = `rgba(255,60,80,${pulse})`; ctx.fillRect(x+4,y,TILE-8,TILE);
+    ctx.fillStyle = "#ff2b4b"; ctx.fillRect(x+9,y,TILE-18,TILE);
+    ctx.fillStyle = "rgba(255,200,210,.7)"; ctx.fillRect(x+TILE/2-1,y,2,TILE);
+    return;
+  }
   if (s.type==="brick"){
     ctx.fillStyle="#8a5a2b"; ctx.fillRect(x,y,TILE,TILE);
     ctx.fillStyle="#6b4220";
@@ -520,6 +644,40 @@ function drawFlag(){
   ctx.fillStyle="#ffd23d"; ctx.fillRect(x-2,y+flag.h-4,7,4);
 }
 
+// The Zerox Boss — a giant camouflaging dog (reuses the dog sprite, scaled up)
+function drawBoss(){
+  if (!boss || !boss.alive) return;
+  const b = boss, sx = px(b.x), sy = py(b.y);
+  const face = b.dir < 0 ? -1 : 1, scale = b.w/18;
+  // ground shadow always hints at its position
+  ctx.globalAlpha = 0.22; ctx.fillStyle = "#000";
+  ctx.beginPath(); ctx.ellipse(sx+b.w/2, py(GROUND_TOP), b.w/2.2, 6, 0, 0, 7); ctx.fill();
+  ctx.globalAlpha = 1;
+  // visibility by phase: faint shimmer when hidden, flicker while warning, solid when visible
+  let alpha;
+  if (b.phase === "hidden")    alpha = 0.10 + 0.05*Math.sin(Date.now()/130);
+  else if (b.phase === "warn") alpha = 0.45 + 0.35*Math.abs(Math.sin(Date.now()/45));
+  else                         alpha = 1;
+  if (b.flashT>0 && Math.floor(Date.now()/40)%2) alpha = Math.min(1, alpha+0.5);
+  ctx.globalAlpha = alpha;
+  drawSprite(dogLocal, face<0 ? sx+b.w : sx, sy, scale, face, Date.now()/90);
+  ctx.globalAlpha = 1;
+  // glowing red eyes once it starts to appear
+  if (b.phase !== "hidden"){
+    ctx.globalAlpha = Math.min(1, alpha+0.2);
+    ctx.fillStyle = "#ff2b2b"; // menacing red
+    const ey = sy + 20, ex = face>0 ? sx+b.w-30 : sx+16;
+    ctx.fillRect(ex, ey, 8, 8); ctx.fillRect(ex + (face>0?-14:14), ey, 8, 8);
+    ctx.globalAlpha = 1;
+  }
+  // health pips above the boss
+  for (let i=0;i<3;i++){
+    ctx.fillStyle = i < (3-b.hits) ? "#ff5d5d" : "#3a3a3a";
+    ctx.fillRect(sx+b.w/2-22+i*15, sy-16, 11, 8);
+    ctx.strokeStyle = "#000"; ctx.strokeRect(sx+b.w/2-22+i*15, sy-16, 11, 8);
+  }
+}
+
 // Three Tails — a three-tailed cat
 function drawPlayer(){
   const p = player;
@@ -597,11 +755,20 @@ function drawHUD(){
   if (p.jumpT>0) tags.push(["JMP","#9dff5d",p.jumpT]);
   if (p.starT>0) tags.push(["★","#ffd23d",p.starT]);
   tags.forEach((t,i)=>{ ctx.fillStyle=t[1]; ctx.fillText(t[0]+":"+Math.ceil(t[2]/60), W/2 + (i-tags.length/2)*46+23, 15); });
+  // boss health bar
+  if (bossStarted && boss && boss.alive){
+    const bw=160, bx=W/2-bw/2, by=24;
+    ctx.fillStyle="rgba(0,0,0,.55)"; ctx.fillRect(bx-2,by-2,bw+4,12);
+    ctx.fillStyle="#ff2b2b"; ctx.fillRect(bx,by,bw*(3-boss.hits)/3,8);
+    ctx.strokeStyle="#fff"; ctx.lineWidth=1; ctx.strokeRect(bx-2,by-2,bw+4,12);
+    ctx.fillStyle="#fff"; ctx.font="bold 8px monospace"; ctx.textAlign="center";
+    ctx.fillText("ZEROX BOSS", W/2, by+7);
+  }
   // flash msg
   if (msgT>0){
     ctx.globalAlpha = clamp01(msgT/45);
     ctx.fillStyle="#fff"; ctx.font="bold 18px monospace"; ctx.textAlign="center";
-    ctx.fillText(msg, W/2, 50); ctx.globalAlpha=1; msgT--;
+    ctx.fillText(msg, W/2, 56); ctx.globalAlpha=1; msgT--;
   }
   ctx.textAlign="left";
 }
@@ -727,6 +894,7 @@ function render(){
   for (const c of coins) drawCoin(c);
   for (const pu of powerups) drawPowerup(pu);
   drawFlag();
+  drawBoss();
   for (const e of enemies) drawEnemy(e);
   for (const pt of particles){
     ctx.globalAlpha = clamp01(pt.life);
@@ -750,25 +918,25 @@ function showOverlay(title, text, btn){
 }
 function hideOverlay(){ overlay.classList.add("hidden"); }
 
-const MENU_TEXT = "Play as Three Tails, the three-tailed cat! Reach the flag — stomp the Zerox dogs, grab coins, and collect power-ups: » Speed, ↑ High-Jump, ★ Invincibility.";
+const MENU_TEXT = "Play as Three Tails, the three-tailed cat! Stomp Zerox dogs, grab coins and power-ups — then face the giant camouflaging ZEROX BOSS: jump on it 3 times (only while it's visible!) to reach the flag.";
 function endIntro(){
   if (state !== "intro") return;
   state = "menu";
   showOverlay("PIXEL DASH", MENU_TEXT, "PLAY");
 }
 function startGame(){
-  ensureAudio();
+  ensureAudio(); setTrack(TRACKS.main);
   score = 0; lives = 3; msg=""; msgT=0;
   buildLevel(); state = "play"; hideOverlay();
 }
 function gameOver(){
-  state = "over";
-  showOverlay("GAME OVER", `You scored ${score} points. The flag awaits — give it another run!`, "RETRY");
+  state = "over"; setTrack(TRACKS.main);
+  showOverlay("GAME OVER", `You scored ${score} points. The Zerox boss still guards the flag — try again!`, "RETRY");
 }
 function win(){
-  state = "win"; sfx.win();
+  state = "win"; sfx.win(); setTrack(TRACKS.main);
   const bonus = lives*100; score += bonus;
-  showOverlay("YOU WIN! ★", `You reached the flag! Score ${score} (lives bonus +${bonus}). Nicely dashed.`, "PLAY AGAIN");
+  showOverlay("YOU WIN! ★", `You beat the Zerox boss and reached the flag! Score ${score} (lives bonus +${bonus}). Nicely dashed.`, "PLAY AGAIN");
 }
 
 ovBtn.addEventListener("click", startGame);

@@ -42,6 +42,20 @@ Run to the **green flag** at the end of the level. Along the way:
   - **↑ High-Jump** — jump higher.
   - **★ Invincibility** — flash through enemies; destroy them on contact.
 
+### Boss fight
+
+The flag now sits at the very end, **behind a giant camouflaging Zerox boss**
+and an energy gate. When you enter the arena the music shifts to a dramatic
+synth track and the fight begins:
+
+- The boss is **mostly invisible** (a faint shimmer marks its position) and
+  prowls back and forth. It periodically **flickers a warning and becomes
+  fully visible** — that's your window.
+- **Jump on it while it's visible** to land a hit. Touching it any other way
+  (or while it's hidden) costs a life, and it gets faster after each hit.
+- Land **3 hits** to defeat it. The gate opens, and you walk to the flag to
+  win. You respawn at the arena entrance if you lose a life mid-fight.
+
 Reach the flag to win and bank a **+100 bonus per remaining life**.
 
 ## How it's built
@@ -62,6 +76,8 @@ Everything lives in one file (`index.html`):
   | `=`  | grass platform |
   | `C`  | coin |
   | `E`  | Zerox (dog enemy) |
+  | `B`  | Zerox boss spawn |
+  | `X`  | boss gate/barrier (removed on defeat) |
   | `S` / `J` / `V` | speed / jump / invincibility power-up |
   | `F`  | finish flag |
   | `P`  | player spawn |
@@ -71,7 +87,10 @@ Everything lives in one file (`index.html`):
   files). The music is a small step-sequencer (`scheduler()` / the `LEAD`,
   `BASS` patterns) with a square-wave lead, triangle bass, and noise-based
   drums. It starts on your first key/click (browser autoplay policy) and is
-  muted with **M**. Edit `LEAD`/`BASS`/`BPM` to change the tune.
+  muted with **M**. There are two tracks in `TRACKS` — the upbeat `main` theme
+  and a faster, minor-key `boss` theme that `setTrack()` swaps to when you
+  enter the boss arena. Edit the `LEAD`/`BASS`/`BOSS_LEAD`/`BOSS_BASS` patterns
+  to change the tunes.
 
 ## Extending it
 
