@@ -21,6 +21,14 @@ open game/index.html      # macOS
 
 Jump height is variable — tap for a hop, hold for a full leap.
 
+## Intro cutscene
+
+On load, a short animated intro plays: the title appears, **Three Tails** walks
+in, the **Zerox** pack marches in from the right, and a "stomp 'em / reach the
+flag" beat leads into the menu. Press **Space**, press **Enter**, or
+**click/tap** the screen to skip straight to the menu. It's rendered entirely on
+the canvas (timeline in `renderIntro()` / `INTRO` timings) — no video file.
+
 ## Goal
 
 Run to the **green flag** at the end of the level. Along the way:
