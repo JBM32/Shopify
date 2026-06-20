@@ -60,7 +60,7 @@
     <canvas id="game" width="480" height="270"></canvas>
     <div id="overlay">
       <h2 id="ov-title">PIXEL DASH</h2>
-      <p id="ov-text">Reach the flag! Stomp enemies, grab coins, and snag power-ups.</p>
+      <p id="ov-text">Play as Three Tails, the three-tailed cat! Reach the flag, stomp enemies, grab coins, and snag power-ups.</p>
       <button class="btn" id="ov-btn">PLAY</button>
       <p class="hint">← → / A D to move &nbsp;•&nbsp; Space / W / ↑ to jump</p>
     </div>
@@ -419,26 +419,63 @@ function drawFlag(){
   ctx.fillStyle="#ffd23d"; ctx.fillRect(x-2,y+flag.h-4,7,4);
 }
 
+// Three Tails — a three-tailed cat
 function drawPlayer(){
   const p = player;
   if (p.hurtT>0 && Math.floor(Date.now()/80)%2) return; // blink
   const x=px(p.x), y=py(p.y);
   const star = p.starT>0;
-  const body = star ? `hsl(${Date.now()/3%360},90%,60%)` : "#3d7dff";
-  // body
+  const fur     = star ? `hsl(${Date.now()/3%360},90%,62%)` : "#ff9b3d";
+  const furDark = star ? `hsl(${(Date.now()/3+40)%360},90%,50%)` : "#ef7d1f";
+  const belly   = star ? "#ffffff" : "#ffe6c2";
+  const tip     = star ? "#ffffff" : "#ffd9a8";
+
+  // ---- three tails (drawn behind the body, waving) ----
+  const back = p.face>0 ? x+1 : x+p.w-1;   // attach near the rear
+  const dir  = -p.face;                      // tails sweep opposite to facing
+  const phase = Date.now()/150 + p.anim*0.5;
+  for (let t=0; t<3; t++){
+    let tx = back, ty = y + 7 + t*4;         // three anchor heights
+    for (let seg=0; seg<4; seg++){
+      tx += dir*3;
+      ty += Math.sin(phase + t*1.1 + seg*0.8)*1.6 - 1; // curl up & wave
+      ctx.fillStyle = furDark;
+      ctx.fillRect(Math.round(tx)-1, Math.round(ty)-1, 3, 3);
+    }
+    ctx.fillStyle = tip; // lighter tail tip
+    ctx.fillRect(Math.round(tx)-1, Math.round(ty)-1, 2, 2);
+  }
+
+  // ---- ears ----
+  ctx.fillStyle = fur;
+  ctx.fillRect(x+1, y-3, 4, 4);
+  ctx.fillRect(x+p.w-5, y-3, 4, 4);
+  ctx.fillStyle = "#ff6a9a"; // inner ear
+  ctx.fillRect(x+2, y-1, 2, 2);
+  ctx.fillRect(x+p.w-4, y-1, 2, 2);
+
+  // ---- body ----
   ctx.fillStyle="#000"; ctx.fillRect(x-1,y-1,p.w+2,p.h+2);
-  ctx.fillStyle=body; ctx.fillRect(x,y,p.w,p.h);
-  // overalls
-  ctx.fillStyle= star?"#fff":"#2a55c0"; ctx.fillRect(x,y+p.h-10,p.w,10);
-  // face
-  ctx.fillStyle="#ffd9b3"; ctx.fillRect(x+ (p.face>0?6:2),y+4,8,6);
-  // eye
-  ctx.fillStyle="#000"; ctx.fillRect(x+(p.face>0?11:3),y+5,2,3);
-  // cap
-  ctx.fillStyle="#e23d3d"; ctx.fillRect(x-1,y-1,p.w+2,4); ctx.fillRect(x+(p.face>0?p.w-3:-1),y+2,4,2);
-  // legs animate
+  ctx.fillStyle=fur;    ctx.fillRect(x,y,p.w,p.h);
+  ctx.fillStyle=belly;  ctx.fillRect(x+3,y+9,p.w-6,p.h-9); // cream belly
+  ctx.fillStyle=furDark;                                    // tabby stripes
+  ctx.fillRect(x,y+2,p.w,2);
+  ctx.fillRect(x,y+6,p.w,1);
+
+  // ---- face ----
+  ctx.fillStyle="#3ad13a"; // green eyes
+  ctx.fillRect(x+3,y+3,3,3); ctx.fillRect(x+p.w-6,y+3,3,3);
+  ctx.fillStyle="#0a2a0a"; // pupils track facing
+  const pe = p.face>0?1:0;
+  ctx.fillRect(x+3+pe,y+4,1,2); ctx.fillRect(x+p.w-6+pe,y+4,1,2);
+  ctx.fillStyle="#ff6a9a"; ctx.fillRect(x+p.w/2-1,y+6,2,2); // nose
+  ctx.fillStyle="rgba(255,255,255,.85)"; // whiskers
+  ctx.fillRect(x-3,y+6,4,1); ctx.fillRect(x-3,y+8,3,1);
+  ctx.fillRect(x+p.w-1,y+6,4,1); ctx.fillRect(x+p.w-2,y+8,3,1);
+
+  // ---- paws (animate while running) ----
   const step = p.onGround && Math.abs(p.vx)>0.3 ? Math.floor(p.anim)%2 : 0;
-  ctx.fillStyle="#1a1a1a";
+  ctx.fillStyle=tip;
   ctx.fillRect(x+2, y+p.h, 5, 3+step);
   ctx.fillRect(x+p.w-7, y+p.h, 5, 3+(1-step));
 }
@@ -533,7 +570,7 @@ function fit(){
   canvas.style.height = (finalW*H/W)+"px";
 }
 addEventListener("resize", fit); fit();
-showOverlay("PIXEL DASH", "Reach the flag! Stomp enemies, grab coins, and collect power-ups: » Speed, ↑ High-Jump, ★ Invincibility.", "PLAY");
+showOverlay("PIXEL DASH", "Play as Three Tails, the three-tailed cat! Reach the flag — stomp enemies, grab coins, and collect power-ups: » Speed, ↑ High-Jump, ★ Invincibility.", "PLAY");
 })();
 </script>
 </body>

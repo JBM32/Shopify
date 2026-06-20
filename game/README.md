@@ -1,7 +1,8 @@
 # ★ Pixel Dash — Retro Pixel Platformer
 
-A self-contained HTML5 platformer. No build step, no dependencies — just open
-`index.html` in any modern browser (desktop or mobile).
+A self-contained HTML5 platformer starring **Three Tails**, a three-tailed cat.
+No build step, no dependencies — just open `index.html` in any modern browser
+(desktop or mobile).
 
 ## Play
 
