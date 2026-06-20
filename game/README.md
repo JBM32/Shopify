@@ -30,6 +30,17 @@ flag" beat leads into the menu. Press **Space**, press **Enter**, or
 **click/tap** the screen to skip straight to the menu. It's rendered entirely on
 the canvas (timeline in `renderIntro()` / `INTRO` timings) — no video file.
 
+## Levels
+
+1. **Sunrise Run** (surface) — the platforming run that ends in the
+   camouflaging **Zerox boss** (see below).
+2. **The Underdepths** (cave) — a dark cavern with **bottomless pits**,
+   **spike hazards**, **glowing gems** to collect, crystals, drifting dust, and
+   its own slow, mysterious music track. Reach its flag to win the game.
+
+Clearing a level shows a **LEVEL CLEAR** screen; hit **Descend** to continue
+with your score and lives carried over.
+
 ## Goal
 
 Run to the **green flag** at the end of the level. Along the way:
@@ -76,8 +87,14 @@ Everything lives in one file (`index.html`):
   | `=`  | grass platform |
   | `C`  | coin |
   | `E`  | Zerox (dog enemy) |
+  | `^`  | spikes (hazard) |
   | `B`  | Zerox boss spawn |
   | `X`  | boss gate/barrier (removed on defeat) |
+
+  Levels live in the `LEVELS` array, each with a `build()` function (see
+  `buildSurface` / `buildCave`) and a `theme` (`surface` or `cave`) that drives
+  the background, tile, and gem rendering. Add a new entry to `LEVELS` to add a
+  stage.
   | `S` / `J` / `V` | speed / jump / invincibility power-up |
   | `F`  | finish flag |
   | `P`  | player spawn |
