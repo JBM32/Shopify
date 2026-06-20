@@ -62,7 +62,7 @@
       <h2 id="ov-title">PIXEL DASH</h2>
       <p id="ov-text">Play as Three Tails, the three-tailed cat! Reach the flag, stomp the Zerox dogs, grab coins, and snag power-ups.</p>
       <button class="btn" id="ov-btn">PLAY</button>
-      <p class="hint">← → / A D to move &nbsp;•&nbsp; Space / W / ↑ to jump</p>
+      <p class="hint">← → / A D to move &nbsp;•&nbsp; Space / W / ↑ to jump &nbsp;•&nbsp; M to mute</p>
     </div>
   </div>
   <div id="touch">
@@ -88,6 +88,8 @@ const setKey = (code, val) => {
 };
 addEventListener("keydown", e => {
   if (["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code)) e.preventDefault();
+  ensureAudio();
+  if (e.code === "KeyM"){ toggleMusic(); return; }
   if (state === "intro" && (e.code === "Space" || e.code === "Enter")){ endIntro(); return; }
   setKey(e.code, true);
   if (e.code === "Enter" && state !== "play") startGame();
@@ -95,7 +97,7 @@ addEventListener("keydown", e => {
 addEventListener("keyup", e => setKey(e.code, false));
 const bindPad = (id, k) => {
   const el = document.getElementById(id);
-  const on = e => { e.preventDefault(); keys[k] = true; };
+  const on = e => { e.preventDefault(); ensureAudio(); keys[k] = true; };
   const off = e => { e.preventDefault(); keys[k] = false; };
   el.addEventListener("touchstart", on, {passive:false});
   el.addEventListener("touchend", off, {passive:false});
@@ -128,6 +130,90 @@ const sfx = {
   hurt:  () => beep(120,.3,"sawtooth",.1),
   win:   () => { [523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16),i*120)); },
 };
+
+// ---------- Retro chiptune music (Web Audio sequencer) ----------
+const music = { on:true, started:false, step:0, next:0, timer:null };
+let masterGain, noiseBuf;
+const SEMI = {C:-9,"C#":-8,D:-7,"D#":-6,E:-5,F:-4,"F#":-3,G:-2,"G#":-1,A:0,"A#":1,B:2};
+function noteFreq(n){
+  if (!n) return 0;
+  const m = /^([A-G]#?)(\d)$/.exec(n); if (!m) return 0;
+  return 440 * Math.pow(2, (SEMI[m[1]] + (parseInt(m[2])-4)*12) / 12);
+}
+// 32 sixteenth-notes (two bars) — bouncy major-key platformer loop
+const LEAD = [
+  "E5",0,"E5",0,"G5",0,"E5",0,"C5",0,"D5",0,"E5",0,0,0,
+  "D5",0,"C5",0,"A4",0,"C5",0,"B4",0,"G4",0,"A4",0,0,0
+];
+const BASS = [
+  "C2",0,0,0,"C2",0,0,0,"G2",0,0,0,"G2",0,0,0,
+  "A2",0,0,0,"A2",0,0,0,"F2",0,0,0,"G2",0,0,0
+];
+const BPM = 132, STEP_DUR = 60/BPM/4; // seconds per sixteenth
+
+function tone(freq, t, dur, type, vol){
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(masterGain);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+function makeNoise(){
+  const b = actx.createBuffer(1, actx.sampleRate*0.2, actx.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
+  return b;
+}
+function drum(t, hp, vol, dur){
+  const s = actx.createBufferSource(); s.buffer = noiseBuf;
+  const f = actx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = hp;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f); f.connect(g); g.connect(masterGain);
+  s.start(t); s.stop(t + dur + 0.02);
+}
+function kick(t){
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = "sine"; o.frequency.setValueAtTime(150, t);
+  o.frequency.exponentialRampToValueAtTime(50, t + 0.12);
+  g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+  o.connect(g); g.connect(masterGain); o.start(t); o.stop(t + 0.18);
+}
+function scheduler(){
+  while (music.next < actx.currentTime + 0.12){
+    const s = music.step % 32, t = music.next;
+    const lf = noteFreq(LEAD[s]); if (lf) tone(lf, t, STEP_DUR*1.7, "square", 0.05);
+    const bf = noteFreq(BASS[s]); if (bf) tone(bf, t, STEP_DUR*2.2, "triangle", 0.08);
+    if (s % 8 === 0) kick(t);                       // beats 1 & 3
+    if (s % 8 === 4) drum(t, 1500, 0.07, 0.12);     // snare on 2 & 4
+    if (s % 2 === 0) drum(t, 7000, 0.03, 0.05);     // hi-hat on eighths
+    music.next += STEP_DUR; music.step++;
+  }
+  music.timer = setTimeout(scheduler, 25);
+}
+function startMusic(){
+  if (music.started) return; music.started = true;
+  masterGain = actx.createGain();
+  masterGain.gain.value = music.on ? 0.4 : 0;
+  masterGain.connect(actx.destination);
+  noiseBuf = makeNoise();
+  music.next = actx.currentTime + 0.1; music.step = 0;
+  scheduler();
+}
+// Create/resume the audio context on a user gesture, then kick off the loop.
+function ensureAudio(){
+  try {
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    if (actx.state === "suspended") actx.resume();
+    if (!music.started) startMusic();
+  } catch(e){}
+}
+function toggleMusic(){
+  music.on = !music.on;
+  if (masterGain) masterGain.gain.setTargetAtTime(music.on ? 0.4 : 0, actx.currentTime, 0.02);
+}
 
 // ---------- World / Level ----------
 const TILE = 24;
@@ -499,6 +585,8 @@ function drawHUD(){
   ctx.fillStyle="rgba(0,0,0,.35)"; ctx.fillRect(0,0,W,22);
   ctx.fillStyle="#ffcf3d"; ctx.font="bold 13px monospace"; ctx.textAlign="left";
   ctx.fillText("● "+String(score).padStart(5,"0"), 8, 15);
+  ctx.fillStyle = music.on ? "#9dff5d" : "#777"; // music on/off (M)
+  ctx.fillText(music.on ? "♪" : "♪̸", 78, 15);
   // lives
   ctx.textAlign="right";
   ctx.fillStyle="#ff5d5d"; ctx.fillText("♥".repeat(Math.max(0,lives)), W-8, 15);
@@ -669,6 +757,7 @@ function endIntro(){
   showOverlay("PIXEL DASH", MENU_TEXT, "PLAY");
 }
 function startGame(){
+  ensureAudio();
   score = 0; lives = 3; msg=""; msgT=0;
   buildLevel(); state = "play"; hideOverlay();
 }
@@ -699,7 +788,7 @@ function loop(now){
 }
 requestAnimationFrame(loop);
 // click/tap the canvas to skip the intro
-canvas.addEventListener("click", () => { if (state === "intro") endIntro(); });
+canvas.addEventListener("click", () => { ensureAudio(); if (state === "intro") endIntro(); });
 
 // responsive scale
 function fit(){

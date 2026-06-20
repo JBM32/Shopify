@@ -18,6 +18,7 @@ open game/index.html      # macOS
 | Move   | ← → or A D | ◀ ▶ pads |
 | Jump   | Space / ↑ / W | ▲ pad |
 | Start / Restart | Enter or the on-screen button | tap button |
+| Mute / unmute music | M | — |
 
 Jump height is variable — tap for a hop, hold for a full leap.
 
@@ -65,8 +66,12 @@ Everything lives in one file (`index.html`):
   | `F`  | finish flag |
   | `P`  | player spawn |
 
-- **Audio** — sound effects are synthesized at runtime via the Web Audio API
-  (no audio files).
+- **Audio** — both the sound effects *and* the looping retro chiptune
+  background music are synthesized at runtime via the Web Audio API (no audio
+  files). The music is a small step-sequencer (`scheduler()` / the `LEAD`,
+  `BASS` patterns) with a square-wave lead, triangle bass, and noise-based
+  drums. It starts on your first key/click (browser autoplay policy) and is
+  muted with **M**. Edit `LEAD`/`BASS`/`BPM` to change the tune.
 
 ## Extending it
 
