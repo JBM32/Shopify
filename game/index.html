@@ -90,6 +90,9 @@ addEventListener("keydown", e => {
   if (["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code)) e.preventDefault();
   ensureAudio();
   if (e.code === "KeyM"){ toggleMusic(); return; }
+  // --- TEMP PLAYTEST CHEAT (remove before release): O = next level, I = prev level ---
+  if ((e.code === "KeyO" || e.code === "KeyI") && state !== "intro"){ cheatJumpLevel(e.code === "KeyO" ? 1 : -1); return; }
+  // --- end cheat ---
   if (state === "intro" && (e.code === "Space" || e.code === "Enter")){ endIntro(); return; }
   setKey(e.code, true);
   if (e.code === "Enter" && state !== "play") onOverlayButton();
@@ -343,7 +346,7 @@ const LEVELS = [
   { name:"THE UNDERDEPTHS", theme:"cave",   track:"cave", build:buildCave },
 ];
 
-let LEVEL, COLS, LEVEL_W, LEVEL_H, theme, levelIndex = 0;
+let LEVEL, COLS, LEVEL_W, LEVEL_H, theme, levelIndex = 0, levelStartScore = 0;
 let solids, coins, enemies, powerups, flag, player, cam, state, score, lives, msg, msgT, particles;
 let boss, bossStarted, barriers, checkpoint, hazards;
 
@@ -1090,7 +1093,7 @@ function endIntro(){
 function levelTrack(){ return TRACKS[LEVELS[levelIndex].track] || TRACKS.main; }
 function startGame(){
   ensureAudio();
-  levelIndex = 0; score = 0; lives = 3; msg=""; msgT=0;
+  levelIndex = 0; score = 0; lives = 3; levelStartScore = 0; msg=""; msgT=0;
   buildLevel(); setTrack(levelTrack());
   state = "play"; hideOverlay();
 }
@@ -1104,13 +1107,20 @@ function reachFlag(){
   }
 }
 function advanceLevel(){
-  levelIndex++;
+  levelIndex++; levelStartScore = score;
+  buildLevel(); setTrack(levelTrack());
+  state = "play"; hideOverlay();
+}
+// Restart the CURRENT level (used by Retry after a game over) so you don't get
+// sent back to an earlier level. Lives refill; score rewinds to the level start.
+function retryLevel(){
+  lives = 3; score = levelStartScore; msg=""; msgT=0;
   buildLevel(); setTrack(levelTrack());
   state = "play"; hideOverlay();
 }
 function gameOver(){
-  state = "over"; setTrack(TRACKS.main);
-  showOverlay("GAME OVER", `You scored ${score} points on level ${levelIndex+1}. Give it another run!`, "RETRY");
+  state = "over"; setTrack(levelTrack());
+  showOverlay("GAME OVER", `You scored ${score} on level ${levelIndex+1}. Retry restarts ${LEVELS[levelIndex].name}.`, "RETRY");
 }
 function win(){
   state = "win"; sfx.win(); setTrack(TRACKS.main);
@@ -1119,8 +1129,21 @@ function win(){
 }
 function onOverlayButton(){
   if (state === "levelclear") advanceLevel();
+  else if (state === "over") retryLevel();
   else startGame();
 }
+
+// --- TEMP PLAYTEST CHEAT (remove before release) ---
+// Jump straight to another level (O = next, I = previous) keeping lives/score.
+function cheatJumpLevel(dir){
+  const n = levelIndex + dir;
+  if (n < 0 || n >= LEVELS.length) return;
+  levelIndex = n; levelStartScore = score;
+  buildLevel(); setTrack(levelTrack());
+  state = "play"; hideOverlay();
+  msgFlash("CHEAT → LV" + (levelIndex+1) + " " + LEVELS[levelIndex].name);
+}
+// --- end cheat ---
 
 ovBtn.addEventListener("click", onOverlayButton);
 
