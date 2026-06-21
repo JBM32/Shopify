@@ -557,20 +557,20 @@ function updateBoss(){
 
   // camouflage cycle: hidden → warn → visible → hidden …
   if (--b.timer <= 0){
-    if (b.phase === "hidden"){ b.phase = "warn"; b.timer = 36; beep(70,.18,"sawtooth",.06); }
-    else if (b.phase === "warn"){ b.phase = "visible"; b.timer = Math.max(54, 108 - b.hits*18); beep(520,.06,"square",.05); }
-    else { b.phase = "hidden"; b.timer = Math.max(80, 150 - b.hits*18); }
+    if (b.phase === "hidden"){ b.phase = "warn"; b.timer = 48; beep(70,.18,"sawtooth",.06); }
+    else if (b.phase === "warn"){ b.phase = "visible"; b.timer = Math.max(120, 168 - b.hits*8); beep(520,.06,"square",.05); }
+    else { b.phase = "hidden"; b.timer = Math.max(54, 90 - b.hits*8); }
   }
 
-  // prowl back and forth across the arena, faster as it gets hurt
-  const spd = 1.0 + b.hits*0.55;
+  // prowl back and forth across the arena, a little faster as it gets hurt
+  const spd = 0.7 + b.hits*0.25;
   b.x += b.dir*spd;
   if (b.x < b.arenaL){ b.x = b.arenaL; b.dir = 1; }
   if (b.x + b.w > b.arenaR){ b.x = b.arenaR - b.w; b.dir = -1; }
 
   // player interaction
   if (b.cooldown<=0 && aabb(p,b)){
-    const stomping = p.vy>0 && (p.y+p.h) - b.y < 28;
+    const stomping = p.vy>0 && (p.y+p.h) - b.y < 34;
     if (b.phase === "visible" && (stomping || p.starT>0)) bossHit();
     else if (p.starT>0){ /* invisible + star: harmless, no hit */ }
     else damage(false);
@@ -579,7 +579,7 @@ function updateBoss(){
 function bossHit(){
   const b = boss, p = player;
   b.hits++; p.vy = -11;                 // bounce off
-  b.phase = "hidden"; b.timer = 110; b.flashT = 20; b.cooldown = 22;
+  b.phase = "hidden"; b.timer = 70; b.flashT = 20; b.cooldown = 22;
   b.dir = p.x < b.x ? 1 : -1;           // bolt away from the player
   score += 100; sfx.stomp();
   spawnParticles(b.x+b.w/2, b.y+12, "#ff5d5d", 18);
