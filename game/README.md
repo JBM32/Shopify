@@ -50,6 +50,9 @@ Run to the **green flag** at the end of the level. Along the way:
 - **Coins (●)** — +10 points each.
 - **Zerox (the dogs)** — stomp them from above (+50) or get hit and lose a
   life. You start with **3 lives (♥)**.
+- **Fire-spitting guinea pigs** — chubby critters that sit still, face you, and
+  lob arcing **fireballs**. Jump the fireballs and **stomp the guinea pig** from
+  above (+50) to take it out; a touch from the side or a fireball costs a life.
 - **Power-ups** (timed, ~7–8s, shown in the HUD):
   - **» Speed** — run faster.
   - **↑ High-Jump** — jump higher.
@@ -89,6 +92,7 @@ Everything lives in one file (`index.html`):
   | `=`  | grass platform |
   | `C`  | coin |
   | `E`  | Zerox (dog enemy) |
+  | `G`  | fire-spitting guinea pig |
   | `^`  | spikes (hazard) |
   | `K`  | checkpoint |
   | `B`  | Zerox boss spawn |

@@ -131,6 +131,7 @@ const sfx = {
   stomp: () => beep(160,.12,"sawtooth",.08),
   power: () => { beep(660,.08); setTimeout(()=>beep(990,.08),70); setTimeout(()=>beep(1320,.12),140); },
   hurt:  () => beep(120,.3,"sawtooth",.1),
+  fire:  () => { beep(330,.07,"sawtooth",.05); setTimeout(()=>beep(170,.12,"sawtooth",.05),50); },
   win:   () => { [523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16),i*120)); },
 };
 
@@ -257,8 +258,8 @@ const TILE = 24;
 const GRAV = 0.55, MOVE = 0.7, FRICTION = 0.8, MAXVX = 4.2, JUMP = 11;
 
 // Maps are generated so columns stay perfectly aligned. Legend:
-// # ground/brick, = platform, C coin, E enemy, S speed, J jump, V star,
-// ^ spikes (hazard), K checkpoint, B boss spawn, X boss barrier, F flag, P player spawn.
+// # ground/brick, = platform, C coin, E enemy, G fire-spitting guinea pig,
+// S speed, J jump, V star, ^ spikes, K checkpoint, B boss, X barrier, F flag, P player.
 const ROWS = 12;
 const GROUND_TOP = (ROWS-2) * TILE;     // y of the floor surface
 const BOSS_W = 72, BOSS_H = 80;
@@ -287,6 +288,7 @@ function buildSurface(){
   fill(5,46,50,"="); set(4,47,"C"); set(4,48,"C");
   fill(4,54,58,"="); set(3,56,"V");
   fill(6,60,66,"="); set(5,62,"C"); set(5,64,"C");
+  set(9,50,"G");                                   // fire-spitting guinea pig
   fill(7,72,76,"=");
   fill(6,92,95,"=");  fill(6,108,111,"=");
   set(4,98,"C"); set(4,100,"C"); set(4,102,"C");
@@ -312,6 +314,7 @@ function buildCave(){
   // small spike strip (easy to clear)
   fill(9,31,32,"^"); set(6,30,"C"); set(6,35,"C");
   fill(6,30,30,"="); fill(6,35,35,"=");
+  set(9,37,"G");                                   // guinea pig guarding the run
   set(9,46,"E");
   // pit 40-43 with a mid stepping stone
   fill(8,41,42,"="); set(7,42,"C");
@@ -332,6 +335,7 @@ function buildCave(){
   fill(8,100,101,"="); set(7,102,"C");
   // descent to the depths + gems
   fill(6,108,112,"="); set(5,109,"C"); set(5,110,"C"); set(5,111,"C");
+  set(9,106,"G");                                  // guinea pig in the depths
   set(9,113,"E");
   fill(8,114,117,"=");
   // final short spike strip, then the gateway pit 122-124
@@ -350,7 +354,7 @@ const LEVELS = [
 
 let LEVEL, COLS, LEVEL_W, LEVEL_H, theme, levelIndex = 0, levelStartScore = 0;
 let solids, coins, enemies, powerups, flag, player, cam, state, score, lives, msg, msgT, particles;
-let boss, bossStarted, barriers, checkpoint, hazards, checkpoints;
+let boss, bossStarted, barriers, checkpoint, hazards, checkpoints, fireballs;
 
 function rectAt(c, r){ return { x:c*TILE, y:r*TILE, w:TILE, h:TILE }; }
 
@@ -360,7 +364,7 @@ function buildLevel(){
   LEVEL = lv.build();
   COLS = Math.max(...LEVEL.map(r => r.length));
   LEVEL_W = COLS * TILE; LEVEL_H = ROWS * TILE;
-  solids = []; coins = []; enemies = []; powerups = []; particles = []; barriers = []; hazards = []; checkpoints = [];
+  solids = []; coins = []; enemies = []; powerups = []; particles = []; barriers = []; hazards = []; checkpoints = []; fireballs = [];
   flag = null; boss = null; bossStarted = false;
   let spawn = { x: TILE*2, y: TILE*2 };
   let bossCol = null;
@@ -374,7 +378,8 @@ function buildLevel(){
       else if (ch === "^") hazards.push({ x:x+3, y:y+TILE-10, w:TILE-6, h:10 });
       else if (ch === "K") checkpoints.push({ tx:x, x:x, y:GROUND_TOP-23, taken:false });
       else if (ch === "C") coins.push({ x:x+TILE/2, y:y+TILE/2, got:false, t:Math.random()*6 });
-      else if (ch === "E") enemies.push({ x:x+3, y:y+2, w:TILE-6, h:TILE-4, vx:-0.9, vy:0, alive:true });
+      else if (ch === "E") enemies.push({ x:x+3, y:y+2, w:TILE-6, h:TILE-4, vx:-0.9, vy:0, alive:true, kind:"zerox" });
+      else if (ch === "G") enemies.push({ x:x+3, y:y+2, w:TILE-6, h:TILE-4, vx:0, vy:0, alive:true, kind:"guinea", face:-1, fireT:60+Math.floor(Math.random()*60) });
       else if (ch === "S") powerups.push({ x:x+4, y:y+4, w:TILE-8, h:TILE-8, kind:"speed", got:false, t:0 });
       else if (ch === "J") powerups.push({ x:x+4, y:y+4, w:TILE-8, h:TILE-8, kind:"jump", got:false, t:0 });
       else if (ch === "V") powerups.push({ x:x+4, y:y+4, w:TILE-8, h:TILE-8, kind:"star", got:false, t:0 });
@@ -499,6 +504,28 @@ function update(){
   for (const e of enemies){
     if (!e.alive) continue;
     e.vy += GRAV; if (e.vy>14) e.vy=14;
+    if (e.kind === "guinea"){
+      // stays put, faces the player, and spits fireballs
+      e.face = p.x < e.x ? -1 : 1;
+      e.y += e.vy;
+      for (const s of solids){ if (aabb(e,s)){ if(e.vy>0){e.y=s.y-e.h;} e.vy=0; } }
+      e.fireT--;
+      const inView = e.x > cam.x-30 && e.x < cam.x+W+30;
+      const dy = Math.abs((p.y+p.h/2)-(e.y+e.h/2));
+      if (e.fireT<=0 && inView && dy < 60){
+        fireballs.push({ x:e.x+e.w/2+e.face*9, y:e.y+5, vx:e.face*3.1, vy:-1.3, life:170 });
+        e.fireT = 95 + Math.floor(Math.random()*45);
+        sfx.fire();
+      }
+      if (aabb(p,e)){
+        const stomping = p.vy>0 && (p.y+p.h)-e.y < 14;
+        if (p.starT>0 || stomping){
+          e.alive=false; if(stomping)p.vy=-8; score+=50; msgFlash("+50");
+          spawnParticles(e.x+e.w/2,e.y,"#ffae3d",10); sfx.stomp();
+        } else damage(false);
+      }
+      continue;
+    }
     // horizontal with turn-at-edge/wall
     e.x += e.vx;
     let hit=false;
@@ -523,6 +550,16 @@ function update(){
       } else damage(false);
     }
   }
+  // fireballs (spat by guinea pigs)
+  for (const fb of fireballs){
+    fb.vy += 0.05; fb.x += fb.vx; fb.y += fb.vy; fb.life--;
+    if (aabb(p, {x:fb.x-5,y:fb.y-5,w:10,h:10})){ fb.life=0; spawnParticles(fb.x,fb.y,"#ffae3d",8); damage(false); }
+    else for (const s of solids){
+      if (fb.x>s.x && fb.x<s.x+s.w && fb.y>s.y && fb.y<s.y+s.h){ fb.life=0; spawnParticles(fb.x,fb.y,"#ffae3d",6); break; }
+    }
+  }
+  fireballs = fireballs.filter(fb => fb.life>0 && fb.y < LEVEL_H+40);
+
   // boss fight
   updateBoss();
 
@@ -794,9 +831,39 @@ function drawPowerup(pu){
   ctx.textAlign="left";
 }
 
+// Fire-spitting guinea pig
+function drawGuinea(e){
+  const x=px(e.x), y=py(e.y), w=e.w, h=e.h, dir=e.face<0?-1:1;
+  ctx.save();
+  ctx.translate(x+w/2,0); ctx.scale(dir,1); ctx.translate(-(x+w/2),0);
+  ctx.fillStyle="#000"; ctx.fillRect(x-1,y+3,w+2,h-1);        // outline
+  ctx.fillStyle="#a9763f"; ctx.fillRect(x,y+4,w,h-4);          // chubby brown body
+  ctx.fillStyle="#000"; ctx.fillRect(x,y+4,2,2); ctx.fillRect(x+w-2,y+4,2,2); // rounded corners
+  ctx.fillStyle="#d98f3a"; ctx.fillRect(x+2,y+5,7,6);          // ginger patch
+  ctx.fillStyle="#f3ead8"; ctx.fillRect(x+w-9,y+8,9,h-9);      // white face/belly
+  ctx.fillStyle="#8a5e30"; ctx.fillRect(x+w-12,y+3,3,2); ctx.fillRect(x+w-7,y+2,3,3); // ears
+  ctx.fillStyle="#1a1a1a"; ctx.fillRect(x+w-6,y+9,2,2);        // eye
+  ctx.fillStyle="#ff9a9a"; ctx.fillRect(x+w-1,y+12,2,2);       // nose/mouth
+  ctx.fillStyle="#6b4420"; ctx.fillRect(x+2,y+h,3,2); ctx.fillRect(x+w-6,y+h,3,2); // feet
+  if (e.fireT < 16){ ctx.fillStyle="rgba(255,150,40,.9)"; ctx.fillRect(x+w,y+11,4,4); } // charging spark
+  ctx.restore();
+}
+function drawFireballs(){
+  for (const fb of fireballs){
+    const x=px(fb.x), y=py(fb.y);
+    const r = 4 + Math.sin(Date.now()/40)*1;
+    ctx.globalAlpha=0.4; ctx.fillStyle="#ff7a1a";
+    ctx.beginPath(); ctx.arc(x,y,r+3,0,7); ctx.fill(); ctx.globalAlpha=1;
+    ctx.fillStyle="#ff3b1a"; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+    ctx.fillStyle="#ffd23d"; ctx.beginPath(); ctx.arc(x-fb.vx*0.3,y-1,r-2,0,7); ctx.fill();
+    ctx.fillStyle="rgba(255,150,40,.5)"; ctx.fillRect(x-fb.vx, y-1, 3, 2); // trail
+  }
+}
+
 // Zerox — tailless dog enemies
 function drawEnemy(e){
   if (!e.alive) return;
+  if (e.kind === "guinea") return drawGuinea(e);
   const x=px(e.x), y=py(e.y), w=e.w, h=e.h;
   const dir = e.vx<0 ? -1 : 1;
   const body="#8a6b4a", dark="#5f4730", muzzle="#caa370";
@@ -1092,6 +1159,7 @@ function render(){
   drawFlag();
   drawBoss();
   for (const e of enemies) drawEnemy(e);
+  drawFireballs();
   for (const pt of particles){
     ctx.globalAlpha = clamp01(pt.life);
     ctx.fillStyle = pt.color;
