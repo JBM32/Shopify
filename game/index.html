@@ -258,7 +258,7 @@ const GRAV = 0.55, MOVE = 0.7, FRICTION = 0.8, MAXVX = 4.2, JUMP = 11;
 
 // Maps are generated so columns stay perfectly aligned. Legend:
 // # ground/brick, = platform, C coin, E enemy, S speed, J jump, V star,
-// ^ spikes (hazard), B boss spawn, X boss barrier, F flag, P player spawn.
+// ^ spikes (hazard), K checkpoint, B boss spawn, X boss barrier, F flag, P player spawn.
 const ROWS = 12;
 const GROUND_TOP = (ROWS-2) * TILE;     // y of the floor surface
 const BOSS_W = 72, BOSS_H = 80;
@@ -301,39 +301,41 @@ function buildCave(){
   const W2 = 150, { set, fill, rows } = makeGrid(W2);
   fill(10,0,W2-1,"#"); fill(11,0,W2-1,"#");      // floor, then carve pits
   const pit = (c1,c2) => { fill(10,c1,c2," "); fill(11,c1,c2," "); };
-  pit(18,21); pit(40,44); pit(70,75); pit(100,104); pit(122,126);
+  pit(18,20); pit(40,43); pit(70,73); pit(100,103); pit(122,124);
   set(9,3,"P");
   // opening descent
   fill(6,7,10,"="); set(5,8,"C"); set(5,9,"C");
   set(9,14,"E");
-  // pit 18-21 — leap across, gems hover over it
-  set(7,19,"C"); set(7,20,"C");
+  // pit 18-20 — short leap, gems hover near it
+  set(7,18,"C"); set(7,19,"C");
   fill(7,24,27,"="); set(6,25,"S");               // speed boost on a ledge
-  // spike gauntlet on the ground
-  fill(9,31,33,"^"); set(6,30,"C"); set(6,36,"C");
-  fill(6,30,30,"="); fill(6,36,36,"=");
-  set(9,48,"E");
-  // pit 40-44 with a mid stepping stone
-  fill(8,41,43,"="); set(7,42,"C");
+  // small spike strip (easy to clear)
+  fill(9,31,32,"^"); set(6,30,"C"); set(6,35,"C");
+  fill(6,30,30,"="); fill(6,35,35,"=");
+  set(9,46,"E");
+  // pit 40-43 with a mid stepping stone
+  fill(8,41,42,"="); set(7,42,"C");
   // rising rock steps
   fill(8,52,55,"="); fill(6,58,61,"="); set(5,59,"C"); set(5,60,"C");
-  fill(7,64,67,"="); set(6,65,"J");               // high-jump for the big gap
+  fill(7,64,67,"="); set(6,65,"J");               // high-jump on a ledge
   set(9,69,"E");
-  // big pit 70-75 — mid stepping stone, gems above
-  fill(8,72,73,"="); set(5,72,"C"); set(5,73,"C");
-  fill(6,78,82,"="); set(5,80,"V");               // invincibility before spikes
-  // spike pit floor section (hop the rock caps)
-  fill(9,86,90,"^"); fill(6,86,87,"="); fill(6,90,91,"=");
-  set(5,86,"C"); set(5,91,"C");
-  set(9,96,"E");
-  // pit 100-104 with stepping stones
-  fill(8,100,101,"="); fill(7,103,104,"="); set(6,103,"C");
+  // pit 70-73 with a mid stepping stone, gems above
+  fill(8,71,72,"="); set(5,71,"C"); set(5,72,"C");
+  fill(6,77,82,"="); set(5,79,"V");               // invincibility before spikes
+  // --- HALFWAY CHECKPOINT ---
+  set(9,78,"K");
+  // short spike strip with rock caps to hop
+  fill(9,86,88,"^"); fill(6,85,85,"="); fill(6,89,90,"=");
+  set(5,86,"C"); set(5,90,"C");
+  set(9,95,"E");
+  // pit 100-103 with a stepping stone
+  fill(8,100,101,"="); set(7,102,"C");
   // descent to the depths + gems
   fill(6,108,112,"="); set(5,109,"C"); set(5,110,"C"); set(5,111,"C");
   set(9,113,"E");
   fill(8,114,117,"=");
-  // final spike crossing then the gateway pit 122-126
-  fill(9,118,120,"^");
+  // final short spike strip, then the gateway pit 122-124
+  fill(9,118,119,"^");
   fill(7,128,132,"="); set(6,130,"C");
   // exit flag on a rock pedestal (connected to the floor)
   fill(8,140,144,"#"); fill(9,140,144,"#");
@@ -348,7 +350,7 @@ const LEVELS = [
 
 let LEVEL, COLS, LEVEL_W, LEVEL_H, theme, levelIndex = 0, levelStartScore = 0;
 let solids, coins, enemies, powerups, flag, player, cam, state, score, lives, msg, msgT, particles;
-let boss, bossStarted, barriers, checkpoint, hazards;
+let boss, bossStarted, barriers, checkpoint, hazards, checkpoints;
 
 function rectAt(c, r){ return { x:c*TILE, y:r*TILE, w:TILE, h:TILE }; }
 
@@ -358,7 +360,7 @@ function buildLevel(){
   LEVEL = lv.build();
   COLS = Math.max(...LEVEL.map(r => r.length));
   LEVEL_W = COLS * TILE; LEVEL_H = ROWS * TILE;
-  solids = []; coins = []; enemies = []; powerups = []; particles = []; barriers = []; hazards = [];
+  solids = []; coins = []; enemies = []; powerups = []; particles = []; barriers = []; hazards = []; checkpoints = [];
   flag = null; boss = null; bossStarted = false;
   let spawn = { x: TILE*2, y: TILE*2 };
   let bossCol = null;
@@ -370,6 +372,7 @@ function buildLevel(){
       if (ch === "#" || ch === "=") solids.push({...rectAt(c,r), type: ch==="="?"plat":"brick"});
       else if (ch === "X"){ const s = {...rectAt(c,r), type:"barrier"}; solids.push(s); barriers.push(s); }
       else if (ch === "^") hazards.push({ x:x+3, y:y+TILE-10, w:TILE-6, h:10 });
+      else if (ch === "K") checkpoints.push({ tx:x, x:x, y:GROUND_TOP-23, taken:false });
       else if (ch === "C") coins.push({ x:x+TILE/2, y:y+TILE/2, got:false, t:Math.random()*6 });
       else if (ch === "E") enemies.push({ x:x+3, y:y+2, w:TILE-6, h:TILE-4, vx:-0.9, vy:0, alive:true });
       else if (ch === "S") powerups.push({ x:x+4, y:y+4, w:TILE-8, h:TILE-8, kind:"speed", got:false, t:0 });
@@ -482,6 +485,15 @@ function update(){
   // spike hazards
   for (const hz of hazards){
     if (aabb(p, hz)) { damage(false); break; }
+  }
+  // checkpoints — update the respawn point when passed
+  for (const cp of checkpoints){
+    if (!cp.taken && p.x + p.w/2 >= cp.tx){
+      cp.taken = true;
+      checkpoint = { x: cp.x, y: cp.y };
+      msgFlash("CHECKPOINT!");
+      beep(660,.08,"square",.06); setTimeout(()=>beep(990,.1,"square",.06),70);
+    }
   }
   // enemies
   for (const e of enemies){
@@ -728,6 +740,23 @@ function drawSpikes(){
       ctx.fill();
     }
     ctx.fillStyle="#6b6680"; ctx.fillRect(x,y+hz.h-2,hz.w,2);
+  }
+}
+
+// checkpoint posts — lit up once reached
+function drawCheckpoints(){
+  for (const cp of checkpoints){
+    const baseX = px(cp.x)+8, groundY = py(GROUND_TOP);
+    ctx.fillStyle = "#9aa3c2"; ctx.fillRect(baseX, groundY-46, 3, 46); // pole
+    const lit = cp.taken;
+    if (lit){
+      ctx.globalAlpha = 0.3; ctx.fillStyle = "#36e0ff";
+      ctx.beginPath(); ctx.arc(baseX+2, groundY-40, 15, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+    }
+    const wv = lit ? Math.sin(Date.now()/180)*2 : 0;
+    ctx.fillStyle = lit ? "#36e0ff" : "#566079";
+    ctx.beginPath();
+    ctx.moveTo(baseX+3, groundY-46); ctx.lineTo(baseX+19+wv, groundY-40); ctx.lineTo(baseX+3, groundY-34); ctx.fill();
   }
 }
 
@@ -1057,6 +1086,7 @@ function render(){
   drawBackground();
   for (const s of solids) drawTile(s);
   drawSpikes();
+  drawCheckpoints();
   for (const c of coins) drawCoin(c);
   for (const pu of powerups) drawPowerup(pu);
   drawFlag();

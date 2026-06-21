@@ -36,7 +36,9 @@ the canvas (timeline in `renderIntro()` / `INTRO` timings) — no video file.
    camouflaging **Zerox boss** (see below).
 2. **The Underdepths** (cave) — a dark cavern with **bottomless pits**,
    **spike hazards**, **glowing gems** to collect, crystals, drifting dust, and
-   its own slow, mysterious music track. Reach its flag to win the game.
+   its own slow, mysterious music track. A **checkpoint (the glowing post)**
+   sits about halfway through — once you touch it, losing a life respawns you
+   there instead of at the start. Reach its flag to win the game.
 
 Clearing a level shows a **LEVEL CLEAR** screen; hit **Descend** to continue
 with your score and lives carried over.
@@ -88,6 +90,7 @@ Everything lives in one file (`index.html`):
   | `C`  | coin |
   | `E`  | Zerox (dog enemy) |
   | `^`  | spikes (hazard) |
+  | `K`  | checkpoint |
   | `B`  | Zerox boss spawn |
   | `X`  | boss gate/barrier (removed on defeat) |
 
