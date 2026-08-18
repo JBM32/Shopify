@@ -78,9 +78,20 @@ Reach the flag to win and bank a **+100 bonus per remaining life**.
 
 Everything lives in one file (`index.html`):
 
-- **Rendering** — HTML5 `<canvas>` at a fixed 480×270 internal resolution,
-  pixel-scaled up to the window (`image-rendering: pixelated`). All art is
+- **Rendering** — HTML5 `<canvas>` with 480×270 logical resolution on a 2×
+  (960×540) backing store, pixel-scaled up to the window
+  (`image-rendering: pixelated`). The world renders on the chunky logical
+  grid; sprites drawn in half-pixel steps get 4× the detail. All art is
   drawn procedurally with `fillRect`/paths — no image assets.
+- **Hero sprite** — Three Tails is authored as palette-keyed texel maps at
+  twice the world's pixel density (`CAT_BODY`, a 32×52 pixel-art bitmap, plus
+  per-pose `CAT_LEGS` maps for a 4-frame run cycle, jump and fall). The maps
+  are parsed once into per-colour runs and drawn with `drawCatSprite()`,
+  which adds the procedural touches: three fanned, striped, cream-tipped
+  tails that sway, a fluttering scarf, twitching whiskers, idle blinks, and
+  a prismatic palette swap while invincible. Edit the map strings to
+  redesign the cat — `.` is transparent and each letter is a `CAT_PAL`
+  colour. The same sprite is reused by the intro cutscene (`catLocal`).
 - **Physics** — fixed 60 Hz update step with gravity, friction, capped
   velocities, and axis-separated AABB collision against the tile grid.
 - **Level** — defined as an ASCII map (the `LEVEL` array). Edit the legend

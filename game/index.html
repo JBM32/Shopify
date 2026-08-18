@@ -57,7 +57,7 @@
 <div id="wrap">
   <h1>★ PIXEL DASH ★</h1>
   <div id="stage">
-    <canvas id="game" width="480" height="270"></canvas>
+    <canvas id="game" width="960" height="540"></canvas>
     <div id="overlay">
       <h2 id="ov-title">PIXEL DASH</h2>
       <p id="ov-text">Play as Three Tails, the three-tailed cat! Reach the flag, stomp the Zerox dogs, grab coins, and snag power-ups.</p>
@@ -76,7 +76,12 @@
 "use strict";
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-const W = canvas.width, H = canvas.height;
+// The backing store is 2× the logical 480×270 resolution: the world still
+// renders on the same chunky pixel grid, but sprites drawn in half-pixel
+// steps (the hero) get 4× the detail. All game code works in logical px.
+const SS = 2;
+const W = canvas.width / SS, H = canvas.height / SS;
+ctx.scale(SS, SS);
 ctx.imageSmoothingEnabled = false;
 
 // ---------- Input ----------
@@ -938,65 +943,251 @@ function drawBoss(){
   }
 }
 
+// ============================================================
+// Three Tails — hi-res hero sprite (2 texels per logical pixel)
+// The body is authored as a 32×52 texel pixel-art map (16×26 logical px:
+// the ears overhang 4px above the 16×22 hitbox). Legs are separate 32×6
+// pose maps drawn below the hitbox; the three tails, trailing scarf and
+// whiskers are drawn procedurally so they can wave and twitch.
+// ============================================================
+const CAT_PAL = {
+  o:"#231204",            // outline, dark warm brown
+  F:"#ff9b3d",            // fur base
+  H:"#ffbd6b",            // fur highlight
+  f:"#e0741a",            // fur shade / tabby stripe
+  d:"#a8500e",            // deep fur shade
+  b:"#ffeacb",            // cream muzzle & belly
+  B:"#eec89b",            // cream shadow
+  p:"#ff7ba1",            // pink inner-ear / nose
+  P:"#d1517a",            // pink shade
+  e:"#49dc4e",            // iris green
+  E:"#1d7a26",            // iris dark rim
+  k:"#07230d",            // pupil
+  w:"#ffffff",            // eye shine
+  r:"#e8433f",            // scarf red
+  R:"#a92c2c",            // scarf shadow
+};
+const CAT_BODY = [
+"....oo....................oo....",
+"...oHFo..................oFFo...",
+"...oHpFo................oFpFo...",
+"..oHppFFo..............oFppFo...",
+"..oHpppFFo............oFpppFo...",
+".oHFpppFFo............oFpppFFo..",
+".oHFFpFFFFo..........oFFFpFFFo..",
+".oHFFFFFFFFoooooooooooFFFFFFFo..",
+".oHHFFFFFFFFFFFFFFFFFFFFFFFFFo..",
+"oHHFFFFfFFFFFffFFFFFFFfFFFFFFFo.",
+"oHHFFFffFFFFffffFFFFFFffFFFFFFo.",
+"oHFFFFffFFFFffffFFFFFFffFFFFFFo.",
+"oHFFFFffFFFFffffFFFFFFffFFFFFFo.",
+"oHFFFFfFFFFFffffFFFFFFFfFFFFFFo.",
+"oHFFFFFFFFFFFffFFFFFFFFFFFFFFFo.",
+"oHFFFFFFFFFFFFFFFFFFFFFFFFFFFFo.",
+"oHFFooooFFFFFFFFFFFFFFooooFFFFo.",
+"oHFooeeeoFFFFFFFFFFFFooeeeoFFFo.",
+"oHFoweekkoFFFFFFFFFFoweekkoFFFo.",
+"oHFoweekkoFFFFFFFFFFoweekkoFFFo.",
+"oFFoeeekkoFFFFFFFFFFoeeekkoFFFo.",
+"oFFoEeekkoFFFFFFFFFFoEeekkoFFFo.",
+"oFFooEEEoFFFbbbbFFFFooEEEoFFFFo.",
+"oFFFooooFFbbppppbbFFFooooFFFFdo.",
+".oFFFFFFFbbbppppbbbFFFFFFFFFdo..",
+".oFFFFFFFbbbbPPbbbbbFFFFFFFFdo..",
+"oFFFFFFFbbbbbbbbbbbbFFFFFFFFFdo.",
+"oFFFFFFFbbbobbbbobbbFFFFFFFFFdo.",
+".oFFFFFFbbbbooooBbbbFFFFFFFFdo..",
+".odFFFFFFbbbbbbBBbFFFFFFFFFddo..",
+"..oodFFFFFbbbbBBbFFFFFFFFdoo....",
+"....ooFFFFFFFFFFFFFFFFFFoo......",
+"....orrrrrrrrrrrrrrrrrrrro......",
+"...orrrrrrrrrrrrrrrrrrrrrro.....",
+"...oRRrrrrrrrrrrrrrrrrrRRRo.....",
+"....oRRRRRRRRRRRRRRRRRRRRo......",
+"....oFFFFFFFFFFFFFFFFFFFFo......",
+"...oFFFFFFbbbbbbbbbbFFFFFFo.....",
+"..oFFFFFbbbbbbbbbbbbbbFFFFFo....",
+"..offFFbbbbbbbbbbbbbbbbFFffo....",
+".offfFFbbbbbbbbbbbbbbbbFFfffo...",
+".offFFFbbbbbbbbbbbbbbbbFFFffo...",
+".oFFFFFbbbbbbbbbbbbbbbbFFFFFo...",
+".offFFFbbbbbbbbbbbbbbbbFFFffo...",
+".offFFFbbbbbbbbbbbbbbbbFFFffo...",
+".oFFFFFbbbbbbbbbbbbbbbbFFFFFo...",
+".offFFFbbbbbbbbbbbbbbbbFFFffo...",
+".odfFFFbbbbbbbbbbbbbbbbFFFfdo...",
+".odFFFFBbbbbbbbbbbbbbbBFFFFdo...",
+".odFFFFFBBbbbbbbbbbbBBFFFFFdo...",
+"..odFFFFFFBBBBBBBBBBFFFFFFdo....",
+"...ooddFFFFFFFFFFFFFFFFddoo.....",
+];
+// Leg pose maps (32×6): stand, run stride A/passing B/stride C, jump, fall.
+const CAT_LEGS = {
+  stand:[
+"...oFFFFFo..........oFFFFFo.....",
+"...oFFFFFo..........oFFFFFo.....",
+"...oFbbbFo..........oFbbbFo.....",
+"...obbbbbo..........obbbbbo.....",
+"...oooooo...........oooooo......",
+"................................",
+  ],
+  runA:[
+".oFFFFFo...............oFFFFFo..",
+"..oFFFFFo.............oFFFFFo...",
+"...oFbbbFo...........oFbbbFo....",
+"....obbbbo...........obbbbo.....",
+"....ooooo.............ooooo.....",
+"................................",
+  ],
+  runB:[
+"......oFFFFo.....oFFFFo.........",
+"......oFFFFo.....oFFFFo.........",
+"......oFbbFo.....oFbbFo.........",
+"......obbbbo.....obbbbo.........",
+"......ooooo.......ooooo.........",
+"................................",
+  ],
+  runC:[
+"...oFFFFFo..........oFFFFFo.....",
+"....oFFFFFo........oFFFFFo......",
+".....oFbbbFo......oFbbbFo.......",
+"......obbbbo......obbbbo........",
+"......ooooo........ooooo........",
+"................................",
+  ],
+  jump:[
+"....oFFFFo..........oFFFFo......",
+"....oFbbFo..........oFbbFo......",
+"....obbbbo..........obbbbo......",
+"....oooooo..........oooooo......",
+"................................",
+"................................",
+  ],
+  fall:[
+"...oFFFFo............oFFFFo.....",
+"...oFFFFo............oFFFFo.....",
+"...oFFFFo............oFFFFo.....",
+"...oFbbFo............oFbbFo.....",
+"...obbbbo............obbbbo.....",
+"...ooooo..............ooooo.....",
+  ],
+};
+const RUN_SEQ = ["runA","runB","runC","runB"];
+// Parse "rows of palette keys" into per-colour horizontal texel runs
+// (col,row,len) once at load, so drawing is a few fillRects per colour.
+function parseTexelMap(rows){
+  const byColor = {};
+  rows.forEach((row,r)=>{
+    for (let c=0;c<row.length;){
+      const ch=row[c];
+      if (ch==="."){ c++; continue; }
+      let len=1; while (c+len<row.length && row[c+len]===ch) len++;
+      (byColor[ch]=byColor[ch]||[]).push([c,r,len]);
+      c+=len;
+    }
+  });
+  return byColor;
+}
+const CAT_BODY_RUNS = parseTexelMap(CAT_BODY);
+const CAT_LEG_RUNS = {}; for (const k in CAT_LEGS) CAT_LEG_RUNS[k]=parseTexelMap(CAT_LEGS[k]);
+const TX = 0.5; // texel size in logical px (1 device px on the 2× canvas)
+
+function drawTexelRuns(runs, ox, oy, pal){
+  for (const ch in runs){
+    ctx.fillStyle = pal[ch] || CAT_PAL[ch];
+    for (const [c,r,len] of runs[ch]) ctx.fillRect(ox+c*TX, oy+r*TX, len*TX, TX);
+  }
+}
+// The full hero: three tails + scarf tail + body + legs + whiskers.
+// (x,y) = top-left of the 16×22 hitbox in logical px. face: 1 right, -1 left.
+// pose: "stand" | "runA" | "runB" | "runC" | "jump" | "fall"; t = time in ms.
+function drawCatSprite(x, y, face, pose, t, star, blink){
+  const pal = Object.assign({}, CAT_PAL);
+  if (star){                                 // invincibility: prismatic fur
+    const hue = (t/3)%360;
+    pal.F=`hsl(${hue},92%,62%)`; pal.H=`hsl(${hue},95%,74%)`;
+    pal.f=`hsl(${(hue+35)%360},90%,50%)`; pal.d=`hsl(${(hue+55)%360},85%,42%)`;
+    pal.b="#ffffff"; pal.B="#e8e2ff";
+  }
+  ctx.save();
+  ctx.translate(x+8, 0); ctx.scale(face,1); ctx.translate(-(x+8), 0);
+  const phase = t/300;
+  // three lush tails: rooted at the rear hip, fanned wide (low sweep, mid
+  // arc, high curl) with a slow wave. Each is walked twice — an outline
+  // pass then a fur pass — so the segments merge into solid plumes.
+  const SEGS = 11;
+  const q = v => Math.round(v*2)/2;          // snap to the half-px texel grid
+  const tailPath = (tl) => {
+    const pts = [];
+    let tx = x+1.5, ty = y+19-tl;
+    let ang = -0.25 + tl*0.4;                // wide fan: low sweep → high curl
+    for (let seg=0; seg<SEGS; seg++){
+      ang += 0.04 + tl*0.012                 // high tails curl a bit harder
+           + Math.sin(phase + tl*2.1)*0.06;  // whole-tail sway
+      tx -= Math.cos(ang)*1.3;
+      ty -= Math.sin(ang)*1.3 - Math.sin(phase*2 + tl*2.1 + seg*0.5)*0.12;
+      pts.push([tx, ty, 3.0 - seg*0.14]);    // taper
+    }
+    return pts;
+  };
+  const tails = [0,2,1].map(tailPath);       // draw low & high first, mid on top
+  for (const pts of tails){                  // outline pass
+    ctx.fillStyle = pal.o;
+    for (const [tx,ty,wsz] of pts) ctx.fillRect(q(tx-wsz/2)-0.5, q(ty-wsz/2)-0.5, wsz+1, wsz+1);
+  }
+  for (const pts of tails){                  // fur pass
+    pts.forEach(([tx,ty,wsz],seg)=>{
+      const band = (seg===4||seg===5||seg===7);   // dark rings
+      ctx.fillStyle = seg>=8 ? pal.b : band ? pal.f : pal.F;
+      ctx.fillRect(q(tx-wsz/2), q(ty-wsz/2), wsz, wsz);
+      if (seg<8){ ctx.fillStyle = pal.H;          // lit top edge
+        ctx.fillRect(q(tx-wsz/2), q(ty-wsz/2), wsz, 0.5); }
+    });
+  }
+  // trailing scarf end, fluttering behind the shoulders
+  let sx = x+2.5, sy = y+12.5;
+  for (let seg=0; seg<5; seg++){
+    sx -= 1.1; sy += Math.sin(phase*2.6 + seg*0.9)*0.55 + 0.3;
+    ctx.fillStyle = seg>=3 ? CAT_PAL.R : CAT_PAL.r;
+    ctx.fillRect(q(sx), q(sy), 1.5, 1);
+  }
+  // body (bobs down half a texel on the passing run frame)
+  const bob = (pose==="runB") ? 0.5 : 0;
+  drawTexelRuns(CAT_BODY_RUNS, x, y-4+bob, pal);
+  // blink: fur-coloured eyelids with a lash line over the eye texels
+  if (blink){
+    ctx.fillStyle=pal.F;
+    ctx.fillRect(x+1.5, y+4.5, 3.5, 2.5); ctx.fillRect(x+9.5, y+4.5, 3.5, 2.5);
+    ctx.fillStyle=pal.o;
+    ctx.fillRect(x+1.5, y+6.5, 3.5, 0.5); ctx.fillRect(x+9.5, y+6.5, 3.5, 0.5);
+  }
+  // legs below the hitbox
+  drawTexelRuns(CAT_LEG_RUNS[pose] || CAT_LEG_RUNS.stand, x, y+22, pal);
+  // whiskers: two fine angled hairs per cheek, twitching now and then
+  ctx.fillStyle="rgba(255,255,255,.8)";
+  const wj = Math.sin(t/900)>0.85 ? 0.5 : 0;
+  for (const side of [-1,1]){
+    const cheek = side<0 ? x+0.5 : x+15.5;   // just outside the face
+    for (let i=0;i<2;i++){
+      const tilt = i===0 ? -0.5 : 0.5;       // top angles up, bottom down
+      for (let s=0;s<3;s++)
+        ctx.fillRect(cheek + side*(s*1.2) - (side<0?1.2:0), y+9+bob+i*2 + tilt*s + wj, 1.2, 0.5);
+    }
+  }
+  ctx.restore();
+}
+
 // Three Tails — a three-tailed cat
 function drawPlayer(){
   const p = player;
   if (p.hurtT>0 && Math.floor(Date.now()/80)%2) return; // blink
   const x=px(p.x), y=py(p.y);
-  const star = p.starT>0;
-  const fur     = star ? `hsl(${Date.now()/3%360},90%,62%)` : "#ff9b3d";
-  const furDark = star ? `hsl(${(Date.now()/3+40)%360},90%,50%)` : "#ef7d1f";
-  const belly   = star ? "#ffffff" : "#ffe6c2";
-  const tip     = star ? "#ffffff" : "#ffd9a8";
-
-  // ---- three tails (drawn behind the body, waving) ----
-  const back = p.face>0 ? x+1 : x+p.w-1;   // attach near the rear
-  const dir  = -p.face;                      // tails sweep opposite to facing
-  const phase = Date.now()/150 + p.anim*0.5;
-  for (let t=0; t<3; t++){
-    let tx = back, ty = y + 7 + t*4;         // three anchor heights
-    for (let seg=0; seg<4; seg++){
-      tx += dir*3;
-      ty += Math.sin(phase + t*1.1 + seg*0.8)*1.6 - 1; // curl up & wave
-      ctx.fillStyle = furDark;
-      ctx.fillRect(Math.round(tx)-1, Math.round(ty)-1, 3, 3);
-    }
-    ctx.fillStyle = tip; // lighter tail tip
-    ctx.fillRect(Math.round(tx)-1, Math.round(ty)-1, 2, 2);
-  }
-
-  // ---- ears ----
-  ctx.fillStyle = fur;
-  ctx.fillRect(x+1, y-3, 4, 4);
-  ctx.fillRect(x+p.w-5, y-3, 4, 4);
-  ctx.fillStyle = "#ff6a9a"; // inner ear
-  ctx.fillRect(x+2, y-1, 2, 2);
-  ctx.fillRect(x+p.w-4, y-1, 2, 2);
-
-  // ---- body ----
-  ctx.fillStyle="#000"; ctx.fillRect(x-1,y-1,p.w+2,p.h+2);
-  ctx.fillStyle=fur;    ctx.fillRect(x,y,p.w,p.h);
-  ctx.fillStyle=belly;  ctx.fillRect(x+3,y+9,p.w-6,p.h-9); // cream belly
-  ctx.fillStyle=furDark;                                    // tabby stripes
-  ctx.fillRect(x,y+2,p.w,2);
-  ctx.fillRect(x,y+6,p.w,1);
-
-  // ---- face ----
-  ctx.fillStyle="#3ad13a"; // green eyes
-  ctx.fillRect(x+3,y+3,3,3); ctx.fillRect(x+p.w-6,y+3,3,3);
-  ctx.fillStyle="#0a2a0a"; // pupils track facing
-  const pe = p.face>0?1:0;
-  ctx.fillRect(x+3+pe,y+4,1,2); ctx.fillRect(x+p.w-6+pe,y+4,1,2);
-  ctx.fillStyle="#ff6a9a"; ctx.fillRect(x+p.w/2-1,y+6,2,2); // nose
-  ctx.fillStyle="rgba(255,255,255,.85)"; // whiskers
-  ctx.fillRect(x-3,y+6,4,1); ctx.fillRect(x-3,y+8,3,1);
-  ctx.fillRect(x+p.w-1,y+6,4,1); ctx.fillRect(x+p.w-2,y+8,3,1);
-
-  // ---- paws (animate while running) ----
-  const step = p.onGround && Math.abs(p.vx)>0.3 ? Math.floor(p.anim)%2 : 0;
-  ctx.fillStyle=tip;
-  ctx.fillRect(x+2, y+p.h, 5, 3+step);
-  ctx.fillRect(x+p.w-7, y+p.h, 5, 3+(1-step));
+  let pose;
+  if (!p.onGround)               pose = p.vy < 0 ? "jump" : "fall";
+  else if (Math.abs(p.vx) > 0.3) pose = RUN_SEQ[Math.floor(p.anim)%4];
+  else                           pose = "stand";
+  const blink = p.onGround && Date.now()%3400 < 140; // idle blink every ~3.4s
+  drawCatSprite(x, y, p.face, pose, Date.now(), p.starT>0, blink);
 }
 
 function drawHUD(){
@@ -1037,27 +1228,10 @@ function drawHUD(){
 // ---------- Intro cutscene ----------
 // Standalone sprites (drawn at local origin, facing right) so the cutscene
 // can scale/place Three Tails and the Zerox without touching game objects.
-function catLocal(phase){
-  const w=16,h=22, fur="#ff9b3d",furDark="#ef7d1f",belly="#ffe6c2",tip="#ffd9a8";
-  for (let t=0;t<3;t++){           // three tails sweep behind (to the left)
-    let tx=1, ty=7+t*4;
-    for (let seg=0;seg<4;seg++){
-      tx-=3; ty+=Math.sin(phase+t*1.1+seg*0.8)*1.6-1;
-      ctx.fillStyle=furDark; ctx.fillRect(Math.round(tx)-1,Math.round(ty)-1,3,3);
-    }
-  }
-  ctx.fillStyle=fur; ctx.fillRect(1,-3,4,4); ctx.fillRect(w-5,-3,4,4);        // ears
-  ctx.fillStyle="#ff6a9a"; ctx.fillRect(2,-1,2,2); ctx.fillRect(w-4,-1,2,2);
-  ctx.fillStyle="#000"; ctx.fillRect(-1,-1,w+2,h+2);
-  ctx.fillStyle=fur; ctx.fillRect(0,0,w,h);
-  ctx.fillStyle=belly; ctx.fillRect(3,9,w-6,h-9);
-  ctx.fillStyle=furDark; ctx.fillRect(0,2,w,2); ctx.fillRect(0,6,w,1);
-  ctx.fillStyle="#3ad13a"; ctx.fillRect(3,3,3,3); ctx.fillRect(w-6,3,3,3);    // eyes
-  ctx.fillStyle="#0a2a0a"; ctx.fillRect(4,4,1,2); ctx.fillRect(w-5,4,1,2);
-  ctx.fillStyle="#ff6a9a"; ctx.fillRect(w/2-1,6,2,2);
-  ctx.fillStyle="rgba(255,255,255,.85)"; ctx.fillRect(w-1,6,4,1); ctx.fillRect(w-2,8,3,1);
-  const st=Math.floor(phase)%2;                                              // paws
-  ctx.fillStyle=tip; ctx.fillRect(2,h,5,3+st); ctx.fillRect(w-7,h,5,3+(1-st));
+function catLocal(phase, pose){
+  const ms = phase*120;            // renderIntro passes phase = ms/120
+  const blink = pose==="stand" && ms%3400 < 140;
+  drawCatSprite(0, 0, 1, pose || RUN_SEQ[Math.floor(phase)%4], ms, false, blink);
 }
 function dogLocal(phase){
   const w=18,h=20,body="#8a6b4a",dark="#5f4730",muzzle="#caa370";
@@ -1114,11 +1288,14 @@ function renderIntro(ms){
     // Three Tails walks in from the left and settles on the left third
     const walk = clamp01((ms-INTRO.title)/1400);
     let cx = -40 + walk*(W*0.28+40), cy = gY-44;
+    let catPose = walk < 1 ? RUN_SEQ[Math.floor(phase)%4] : "stand";
     if (ms >= INTRO.action){                  // hop happily during the finale
       const jt=(ms-INTRO.action)/420;
-      cy = gY-44 - Math.abs(Math.sin(jt*Math.PI))*30;
+      const hop = Math.abs(Math.sin(jt*Math.PI))*30;
+      cy -= hop;
+      catPose = hop > 2 ? "jump" : "stand";
     }
-    drawSprite(catLocal, cx, cy, 2, 1, phase);
+    drawSprite(ph => catLocal(ph, catPose), cx, cy, 2, 1, phase);
 
     // The Zerox pack marches in from the right, facing the cat
     if (ms >= INTRO.cat){
