@@ -62,13 +62,14 @@
       <h2 id="ov-title">PIXEL DASH</h2>
       <p id="ov-text">Play as Three Tails, the three-tailed cat! Reach the flag, stomp the Zerox dogs, grab coins, and snag power-ups.</p>
       <button class="btn" id="ov-btn">PLAY</button>
-      <p class="hint">← → / A D to move &nbsp;•&nbsp; Space / W / ↑ to jump &nbsp;•&nbsp; M to mute</p>
+      <p class="hint">← → / A D to move &nbsp;•&nbsp; Space / W / ↑ to jump &nbsp;•&nbsp; X to breathe fire &nbsp;•&nbsp; M to mute</p>
     </div>
   </div>
   <div id="touch">
     <div class="pad" id="pad-left">◀</div>
     <div class="pad" id="pad-right">▶</div>
     <div class="pad" id="pad-jump">▲</div>
+    <div class="pad" id="pad-fire">🔥</div>
   </div>
 </div>
 <script>
@@ -85,6 +86,7 @@ const setKey = (code, val) => {
   if (["ArrowLeft","KeyA"].includes(code)) keys.left = val;
   if (["ArrowRight","KeyD"].includes(code)) keys.right = val;
   if (["Space","ArrowUp","KeyW"].includes(code)) keys.jump = val;
+  if (["KeyX","KeyF"].includes(code)) keys.fire = val;
 };
 addEventListener("keydown", e => {
   if (["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code)) e.preventDefault();
@@ -108,7 +110,7 @@ const bindPad = (id, k) => {
   el.addEventListener("mouseup", off);
   el.addEventListener("mouseleave", off);
 };
-bindPad("pad-left","left"); bindPad("pad-right","right"); bindPad("pad-jump","jump");
+bindPad("pad-left","left"); bindPad("pad-right","right"); bindPad("pad-jump","jump"); bindPad("pad-fire","fire");
 
 // ---------- Audio (Web Audio, generated) ----------
 let actx;
@@ -259,7 +261,8 @@ const GRAV = 0.55, MOVE = 0.7, FRICTION = 0.8, MAXVX = 4.2, JUMP = 11;
 
 // Maps are generated so columns stay perfectly aligned. Legend:
 // # ground/brick, = platform, C coin, E enemy, G fire-spitting guinea pig,
-// S speed, J jump, V star, ^ spikes, K checkpoint, B boss, X barrier, F flag, P player.
+// S speed, J jump, V star, R fire-breath, ^ spikes, K checkpoint,
+// B zerox boss, T skeleton boss, X barrier, F flag, P player.
 const ROWS = 12;
 const GROUND_TOP = (ROWS-2) * TILE;     // y of the floor surface
 const BOSS_W = 72, BOSS_H = 80;
@@ -274,7 +277,7 @@ function makeGrid(w){
   };
 }
 
-// Level 1 — surface run ending in the camouflaging Zerox boss.
+// Level 1 — surface run ending in the giant Zerox boss.
 function buildSurface(){
   const W2 = 130, { set, fill, rows } = makeGrid(W2);
   fill(10,0,W2-1,"#"); fill(11,0,W2-1,"#");
@@ -300,7 +303,7 @@ function buildSurface(){
 
 // Level 2 — THE UNDERDEPTHS: a cave with pits, spikes, gems and crystals.
 function buildCave(){
-  const W2 = 150, { set, fill, rows } = makeGrid(W2);
+  const W2 = 158, { set, fill, rows } = makeGrid(W2);
   fill(10,0,W2-1,"#"); fill(11,0,W2-1,"#");      // floor, then carve pits
   const pit = (c1,c2) => { fill(10,c1,c2," "); fill(11,c1,c2," "); };
   pit(18,20); pit(40,43); pit(70,73); pit(100,103); pit(122,124);
@@ -310,7 +313,7 @@ function buildCave(){
   set(9,14,"E");
   // pit 18-20 — short leap, gems hover near it
   set(7,18,"C"); set(7,19,"C");
-  fill(7,24,27,"="); set(6,25,"S");               // speed boost on a ledge
+  fill(7,24,27,"="); set(6,25,"S"); set(6,27,"R"); // speed boost + fire breath
   // small spike strip (easy to clear)
   fill(9,31,32,"^"); set(6,30,"C"); set(6,35,"C");
   fill(6,30,30,"="); fill(6,35,35,"=");
@@ -319,7 +322,7 @@ function buildCave(){
   // pit 40-43 with a mid stepping stone
   fill(8,41,42,"="); set(7,42,"C");
   // rising rock steps
-  fill(8,52,55,"="); fill(6,58,61,"="); set(5,59,"C"); set(5,60,"C");
+  fill(8,52,55,"="); fill(6,58,61,"="); set(5,58,"R"); set(5,59,"C"); set(5,60,"C");
   fill(7,64,67,"="); set(6,65,"J");               // high-jump on a ledge
   set(9,69,"E");
   // pit 70-73 with a mid stepping stone, gems above
@@ -334,16 +337,17 @@ function buildCave(){
   // pit 100-103 with a stepping stone
   fill(8,100,101,"="); set(7,102,"C");
   // descent to the depths + gems
-  fill(6,108,112,"="); set(5,109,"C"); set(5,110,"C"); set(5,111,"C");
+  fill(6,108,112,"="); set(5,109,"C"); set(5,110,"C"); set(5,111,"C"); set(5,112,"R");
   set(9,106,"G");                                  // guinea pig in the depths
   set(9,113,"E");
   fill(8,114,117,"=");
   // final short spike strip, then the gateway pit 122-124
   fill(9,118,119,"^");
-  fill(7,128,132,"="); set(6,130,"C");
-  // exit flag on a rock pedestal (connected to the floor)
-  fill(8,140,144,"#"); fill(9,140,144,"#");
-  set(5,142,"F");
+  // --- skeleton boss arena (cols 126..146) ---
+  fill(7,126,129,"="); set(6,127,"C"); set(6,129,"R"); // last fire top-up
+  set(6,138,"T");                                   // Skeleton Lord spawn
+  for (let r=0;r<=9;r++) set(r,148,"X");            // gate to the flag
+  set(7,153,"F");
   return rows();
 }
 
@@ -354,7 +358,7 @@ const LEVELS = [
 
 let LEVEL, COLS, LEVEL_W, LEVEL_H, theme, levelIndex = 0, levelStartScore = 0;
 let solids, coins, enemies, powerups, flag, player, cam, state, score, lives, msg, msgT, particles;
-let boss, bossStarted, barriers, checkpoint, hazards, checkpoints, fireballs;
+let boss, bossStarted, barriers, checkpoint, hazards, checkpoints, fireballs, flames;
 
 function rectAt(c, r){ return { x:c*TILE, y:r*TILE, w:TILE, h:TILE }; }
 
@@ -364,10 +368,10 @@ function buildLevel(){
   LEVEL = lv.build();
   COLS = Math.max(...LEVEL.map(r => r.length));
   LEVEL_W = COLS * TILE; LEVEL_H = ROWS * TILE;
-  solids = []; coins = []; enemies = []; powerups = []; particles = []; barriers = []; hazards = []; checkpoints = []; fireballs = [];
+  solids = []; coins = []; enemies = []; powerups = []; particles = []; barriers = []; hazards = []; checkpoints = []; fireballs = []; flames = [];
   flag = null; boss = null; bossStarted = false;
   let spawn = { x: TILE*2, y: TILE*2 };
-  let bossCol = null;
+  let bossCol = null, skelCol = null;
   for (let r=0; r<ROWS; r++){
     const row = LEVEL[r];
     for (let c=0; c<row.length; c++){
@@ -383,26 +387,38 @@ function buildLevel(){
       else if (ch === "S") powerups.push({ x:x+4, y:y+4, w:TILE-8, h:TILE-8, kind:"speed", got:false, t:0 });
       else if (ch === "J") powerups.push({ x:x+4, y:y+4, w:TILE-8, h:TILE-8, kind:"jump", got:false, t:0 });
       else if (ch === "V") powerups.push({ x:x+4, y:y+4, w:TILE-8, h:TILE-8, kind:"star", got:false, t:0 });
+      else if (ch === "R") powerups.push({ x:x+4, y:y+4, w:TILE-8, h:TILE-8, kind:"fire", got:false, t:0 });
       else if (ch === "F") flag = { x:x+TILE/2, y:y, w:6, h:TILE*3 };
       else if (ch === "P") spawn = { x, y };
       else if (ch === "B") bossCol = c;
+      else if (ch === "T") skelCol = c;
     }
   }
+  const barrierX = barriers.length ? Math.min(...barriers.map(s=>s.x)) : LEVEL_W;
   if (bossCol != null){
     const bx = bossCol*TILE + TILE/2 - BOSS_W/2;
-    const barrierX = barriers.length ? Math.min(...barriers.map(s=>s.x)) : LEVEL_W;
     boss = {
-      x: bx, y: GROUND_TOP - BOSS_H, w: BOSS_W, h: BOSS_H,
-      dir: -1, hits: 0, phase: "hidden", timer: 150, flashT: 0, cooldown: 0,
+      kind: "zerox", x: bx, y: GROUND_TOP - BOSS_H, w: BOSS_W, h: BOSS_H,
+      dir: -1, hits: 0, maxHits: 3, phase: "visible", timer: 150, flashT: 0, cooldown: 0,
       alive: true, defeated: false,
       arenaL: Math.max(0, bx - 12*TILE), arenaR: barrierX
+    };
+  }
+  if (skelCol != null){
+    const bx = skelCol*TILE + TILE/2 - 30;
+    boss = {
+      kind: "skeleton", x: bx, y: GROUND_TOP - 90, w: 60, h: 90,
+      dir: -1, hits: 0, maxHits: 6, phase: "visible", timer: 90, flashT: 0, cooldown: 0, bob: 0,
+      alive: true, defeated: false,
+      arenaL: Math.max(0, bx - 10*TILE), arenaR: barrierX
     };
   }
   checkpoint = { x: spawn.x, y: spawn.y };
   player = {
     x: spawn.x, y: spawn.y, w: 16, h: 22, vx:0, vy:0,
     onGround:false, face:1, anim:0,
-    speedT:0, jumpT:0, starT:0, hurtT:0
+    speedT:0, jumpT:0, starT:0, hurtT:0,
+    fireCharges:0, fireCd:0
   };
   cam = { x:0, y:0 };
 }
@@ -485,6 +501,7 @@ function update(){
       if (pu.kind==="speed"){ p.speedT = 60*8; msgFlash("SPEED!"); }
       if (pu.kind==="jump"){ p.jumpT = 60*8; msgFlash("HIGH JUMP!"); }
       if (pu.kind==="star"){ p.starT = 60*7; msgFlash("INVINCIBLE!"); }
+      if (pu.kind==="fire"){ p.fireCharges += 5; msgFlash("FIRE BREATH +5  (press X)"); }
     }
   }
   // spike hazards
@@ -550,7 +567,35 @@ function update(){
       } else damage(false);
     }
   }
-  // fireballs (spat by guinea pigs)
+  // fire breath (needs charges from the 🔥 power-up; X / F / 🔥 pad)
+  if (p.fireCd>0) p.fireCd--;
+  if (keys.fire && p.fireCd<=0 && p.fireCharges>0){
+    p.fireCharges--; p.fireCd = 18;
+    flames.push({ x:p.x+p.w/2+p.face*10, y:p.y+8, vx:p.face*4.6, vy:0, life:42 });
+    sfx.fire();
+  }
+  for (const fl of flames){
+    fl.x += fl.vx; fl.life--;
+    const fbox = { x:fl.x-6, y:fl.y-5, w:12, h:10 };
+    for (const e of enemies){
+      if (e.alive && aabb(fbox, e)){
+        e.alive=false; fl.life=0; score+=50; msgFlash("+50");
+        spawnParticles(e.x+e.w/2,e.y,"#ffae3d",10); sfx.stomp(); break;
+      }
+    }
+    if (fl.life>0 && boss && boss.alive && bossStarted && boss.kind==="skeleton" && aabb(fbox, boss)){
+      fl.life=0; boss.hits++; boss.flashT=15; score+=50;
+      spawnParticles(fl.x, fl.y, "#ffd23d", 12); sfx.stomp();
+      if (boss.hits >= boss.maxHits) defeatBoss();
+      else msgFlash("SKELETON HIT  "+boss.hits+"/"+boss.maxHits);
+    }
+    if (fl.life>0) for (const s of solids){
+      if (fl.x>s.x && fl.x<s.x+s.w && fl.y>s.y && fl.y<s.y+s.h){ fl.life=0; spawnParticles(fl.x,fl.y,"#ff7a1a",5); break; }
+    }
+  }
+  flames = flames.filter(fl => fl.life>0);
+
+  // fireballs (spat by guinea pigs and the Skeleton Lord)
   for (const fb of fireballs){
     fb.vy += 0.05; fb.x += fb.vx; fb.y += fb.vy; fb.life--;
     if (aabb(p, {x:fb.x-5,y:fb.y-5,w:10,h:10})){ fb.life=0; spawnParticles(fb.x,fb.y,"#ffae3d",8); damage(false); }
@@ -599,7 +644,7 @@ function updateBoss(){
     bossStarted = true;
     checkpoint = { x: b.arenaL + TILE, y: GROUND_TOP - p.h - 1 };
     setTrack(TRACKS.boss);
-    msgFlash("⚠  ZEROX BOSS  ⚠");
+    msgFlash(b.kind==="skeleton" ? "☠  SKELETON LORD — USE FIRE (X)!  ☠" : "⚠  ZEROX BOSS  ⚠");
     beep(90,.25,"sawtooth",.09);
   }
   if (!bossStarted) return;
@@ -607,36 +652,46 @@ function updateBoss(){
   if (b.cooldown>0) b.cooldown--;
   if (b.flashT>0) b.flashT--;
 
-  // camouflage cycle: hidden → warn → visible → hidden …
-  if (--b.timer <= 0){
-    if (b.phase === "hidden"){ b.phase = "warn"; b.timer = 48; beep(70,.18,"sawtooth",.06); }
-    else if (b.phase === "warn"){ b.phase = "visible"; b.timer = Math.max(120, 168 - b.hits*8); beep(520,.06,"square",.05); }
-    else { b.phase = "hidden"; b.timer = Math.max(54, 90 - b.hits*8); }
+  if (b.kind === "skeleton"){
+    // stalks the player slowly, bobbing; hurls fireballs; only fire breath hurts it
+    b.dir = p.x < b.x ? -1 : 1;
+    b.x += b.dir * (0.4 + b.hits*0.08);
+    b.x = Math.max(b.arenaL+TILE, Math.min(b.arenaR - b.w - 8, b.x));
+    b.bob += 0.06;
+    b.y = GROUND_TOP - b.h + Math.round(Math.sin(b.bob)*3);
+    if (--b.timer <= 0){
+      const dx = (p.x+p.w/2)-(b.x+b.w/2), dy = (p.y+p.h/2)-(b.y+26);
+      const d = Math.hypot(dx,dy) || 1;
+      fireballs.push({ x:b.x+b.w/2, y:b.y+26, vx:dx/d*2.9, vy:dy/d*2.9-1.1, life:210 });
+      b.timer = Math.max(55, 95 - b.hits*7);
+      sfx.fire();
+    }
+    if (b.cooldown<=0 && aabb(p,b)){ b.cooldown = 30; damage(false); }
+    return;
   }
 
-  // prowl back and forth across the arena, a little faster as it gets hurt
+  // zerox: prowl back and forth across the arena, a little faster as it gets hurt
   const spd = 0.7 + b.hits*0.25;
   b.x += b.dir*spd;
   if (b.x < b.arenaL){ b.x = b.arenaL; b.dir = 1; }
   if (b.x + b.w > b.arenaR){ b.x = b.arenaR - b.w; b.dir = -1; }
 
-  // player interaction
+  // player interaction — always visible, stomp to hurt it
   if (b.cooldown<=0 && aabb(p,b)){
     const stomping = p.vy>0 && (p.y+p.h) - b.y < 34;
-    if (b.phase === "visible" && (stomping || p.starT>0)) bossHit();
-    else if (p.starT>0){ /* invisible + star: harmless, no hit */ }
+    if (stomping || p.starT>0) bossHit();
     else damage(false);
   }
 }
 function bossHit(){
   const b = boss, p = player;
   b.hits++; p.vy = -11;                 // bounce off
-  b.phase = "hidden"; b.timer = 70; b.flashT = 20; b.cooldown = 22;
+  b.flashT = 20; b.cooldown = 45;       // brief grace so one stomp = one hit
   b.dir = p.x < b.x ? 1 : -1;           // bolt away from the player
   score += 100; sfx.stomp();
   spawnParticles(b.x+b.w/2, b.y+12, "#ff5d5d", 18);
-  if (b.hits >= 3) defeatBoss();
-  else msgFlash("BOSS HIT  "+b.hits+"/3");
+  if (b.hits >= b.maxHits) defeatBoss();
+  else msgFlash("BOSS HIT  "+b.hits+"/"+b.maxHits);
 }
 function defeatBoss(){
   const b = boss;
@@ -646,7 +701,7 @@ function defeatBoss(){
   solids = solids.filter(s => s.type !== "barrier");   // open the gate to the flag
   barriers = [];
   score += 300; msgFlash("BOSS DEFEATED!");
-  setTrack(TRACKS.main);
+  setTrack(levelTrack());
   sfx.win();
 }
 
@@ -822,13 +877,20 @@ function drawPowerup(pu){
   if (pu.got) return;
   const bob = Math.sin(pu.t*2)*2;
   const x=px(pu.x), y=py(pu.y)+bob, s=pu.w;
-  const col = pu.kind==="speed"?"#36e0ff":pu.kind==="jump"?"#9dff5d":"#ffd23d";
+  const col = pu.kind==="speed"?"#36e0ff":pu.kind==="jump"?"#9dff5d":pu.kind==="fire"?"#ff6a2b":"#ffd23d";
   ctx.fillStyle="#000"; ctx.fillRect(x-1,y-1,s+2,s+2);
   ctx.fillStyle=col; ctx.fillRect(x,y,s,s);
   ctx.fillStyle="rgba(255,255,255,.6)"; ctx.fillRect(x+2,y+2,s-4,3);
-  ctx.fillStyle="#0a1a2a"; ctx.font="bold 11px monospace"; ctx.textAlign="center";
-  ctx.fillText(pu.kind==="speed"?"»":pu.kind==="jump"?"↑":"★", x+s/2, y+s-3);
-  ctx.textAlign="left";
+  if (pu.kind==="fire"){
+    // little flame icon
+    ctx.fillStyle="#ffd23d";
+    ctx.beginPath(); ctx.moveTo(x+s/2,y+3); ctx.lineTo(x+s-4,y+s-3); ctx.lineTo(x+4,y+s-3); ctx.fill();
+    ctx.fillStyle="#fff4b8"; ctx.fillRect(x+s/2-1,y+s-6,2,3);
+  } else {
+    ctx.fillStyle="#0a1a2a"; ctx.font="bold 11px monospace"; ctx.textAlign="center";
+    ctx.fillText(pu.kind==="speed"?"»":pu.kind==="jump"?"↑":"★", x+s/2, y+s-3);
+    ctx.textAlign="left";
+  }
 }
 
 // Fire-spitting guinea pig
@@ -857,6 +919,21 @@ function drawFireballs(){
     ctx.fillStyle="#ff3b1a"; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
     ctx.fillStyle="#ffd23d"; ctx.beginPath(); ctx.arc(x-fb.vx*0.3,y-1,r-2,0,7); ctx.fill();
     ctx.fillStyle="rgba(255,150,40,.5)"; ctx.fillRect(x-fb.vx, y-1, 3, 2); // trail
+  }
+}
+// Three Tails' fire breath
+function drawFlames(){
+  for (const fl of flames){
+    const x=px(fl.x), y=py(fl.y);
+    const a = clamp01(fl.life/28);
+    const r = 5 + Math.sin(Date.now()/35 + fl.x)*1.5;
+    ctx.globalAlpha = a*0.5; ctx.fillStyle="#ff7a1a";
+    ctx.beginPath(); ctx.arc(x,y,r+3,0,7); ctx.fill();
+    ctx.globalAlpha = a; ctx.fillStyle="#ffb23d";
+    ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+    ctx.fillStyle="#fff4b8";
+    ctx.beginPath(); ctx.arc(x-Math.sign(fl.vx)*2,y-1,r-3,0,7); ctx.fill();
+    ctx.globalAlpha = 1;
   }
 }
 
@@ -904,38 +981,86 @@ function drawFlag(){
   ctx.fillStyle="#ffd23d"; ctx.fillRect(x-2,y+flag.h-4,7,4);
 }
 
-// The Zerox Boss — a giant camouflaging dog (reuses the dog sprite, scaled up)
+// Bosses: the giant Zerox dog (level 1) and the Skeleton Lord (level 2)
 function drawBoss(){
   if (!boss || !boss.alive) return;
   const b = boss, sx = px(b.x), sy = py(b.y);
-  const face = b.dir < 0 ? -1 : 1, scale = b.w/18;
-  // ground shadow always hints at its position
+  // ground shadow
   ctx.globalAlpha = 0.22; ctx.fillStyle = "#000";
   ctx.beginPath(); ctx.ellipse(sx+b.w/2, py(GROUND_TOP), b.w/2.2, 6, 0, 0, 7); ctx.fill();
   ctx.globalAlpha = 1;
-  // visibility by phase: faint shimmer when hidden, flicker while warning, solid when visible
-  let alpha;
-  if (b.phase === "hidden")    alpha = 0.10 + 0.05*Math.sin(Date.now()/130);
-  else if (b.phase === "warn") alpha = 0.45 + 0.35*Math.abs(Math.sin(Date.now()/45));
-  else                         alpha = 1;
-  if (b.flashT>0 && Math.floor(Date.now()/40)%2) alpha = Math.min(1, alpha+0.5);
-  ctx.globalAlpha = alpha;
-  drawSprite(dogLocal, face<0 ? sx+b.w : sx, sy, scale, face, Date.now()/90);
-  ctx.globalAlpha = 1;
-  // glowing red eyes once it starts to appear
-  if (b.phase !== "hidden"){
-    ctx.globalAlpha = Math.min(1, alpha+0.2);
-    ctx.fillStyle = "#ff2b2b"; // menacing red
+
+  const hurtFlash = b.flashT>0 && Math.floor(Date.now()/40)%2;
+
+  if (b.kind === "skeleton"){
+    drawSkeleton(b, sx, sy, hurtFlash);
+  } else {
+    const face = b.dir < 0 ? -1 : 1, scale = b.w/18;
+    if (hurtFlash) ctx.globalAlpha = 0.5;
+    drawSprite(dogLocal, face<0 ? sx+b.w : sx, sy, scale, face, Date.now()/90);
+    ctx.globalAlpha = 1;
+    // glowing red eyes
+    ctx.fillStyle = "#ff2b2b";
     const ey = sy + 20, ex = face>0 ? sx+b.w-30 : sx+16;
     ctx.fillRect(ex, ey, 8, 8); ctx.fillRect(ex + (face>0?-14:14), ey, 8, 8);
-    ctx.globalAlpha = 1;
   }
+
   // health pips above the boss
-  for (let i=0;i<3;i++){
-    ctx.fillStyle = i < (3-b.hits) ? "#ff5d5d" : "#3a3a3a";
-    ctx.fillRect(sx+b.w/2-22+i*15, sy-16, 11, 8);
-    ctx.strokeStyle = "#000"; ctx.strokeRect(sx+b.w/2-22+i*15, sy-16, 11, 8);
+  const mp = b.maxHits, pw = mp*15-4;
+  for (let i=0;i<mp;i++){
+    const bx = sx+b.w/2-pw/2+i*15;
+    ctx.fillStyle = i < (mp-b.hits) ? "#ff5d5d" : "#3a3a3a";
+    ctx.fillRect(bx, sy-16, 11, 8);
+    ctx.strokeStyle = "#000"; ctx.strokeRect(bx, sy-16, 11, 8);
   }
+}
+
+// The Skeleton Lord — a big bone-white spectre that hurls fireballs
+function drawSkeleton(b, x, y, hurtFlash){
+  const bone = hurtFlash ? "#ffde9e" : "#e8e4da", dark = "#b9b2a4";
+  const cx = x + b.w/2;
+  const armSwing = Math.sin(b.bob*2)*4;
+  const charging = b.timer < 22;
+  // legs
+  ctx.fillStyle=bone;
+  ctx.fillRect(cx-14, y+66, 6, 22); ctx.fillRect(cx+8, y+66, 6, 22);
+  ctx.fillStyle=dark; ctx.fillRect(cx-15, y+86, 8, 4); ctx.fillRect(cx+7, y+86, 8, 4); // feet
+  // pelvis
+  ctx.fillStyle=bone; ctx.fillRect(cx-13, y+60, 26, 7);
+  // spine
+  ctx.fillRect(cx-3, y+30, 6, 32);
+  // ribs
+  for (let i=0;i<4;i++){
+    ctx.fillRect(cx-16, y+34+i*7, 32, 4);
+  }
+  ctx.fillStyle=dark; ctx.fillRect(cx-16, y+36, 32, 1);
+  // arms (front arm rises to throw)
+  ctx.fillStyle=bone;
+  ctx.fillRect(cx-24, y+32+armSwing, 8, 5);  ctx.fillRect(cx-26, y+32+armSwing, 6, 18); // back arm
+  const fa = charging ? -8 : armSwing;
+  ctx.fillRect(cx+16, y+32+fa, 8, 5); ctx.fillRect(cx+20, y+32+fa, 6, 18);              // front arm
+  // fireball forming in the front hand while charging
+  if (charging){
+    const r = 4 + (22-b.timer)*0.25;
+    ctx.globalAlpha = 0.5; ctx.fillStyle="#ff7a1a";
+    ctx.beginPath(); ctx.arc(cx+23, y+52+fa, r+3, 0, 7); ctx.fill(); ctx.globalAlpha=1;
+    ctx.fillStyle="#ffd23d"; ctx.beginPath(); ctx.arc(cx+23, y+52+fa, r, 0, 7); ctx.fill();
+  }
+  // skull
+  ctx.fillStyle="#000"; ctx.fillRect(cx-17, y-1, 34, 30);
+  ctx.fillStyle=bone; ctx.fillRect(cx-16, y, 32, 22);
+  ctx.fillRect(cx-12, y+22, 24, 7);                          // jaw
+  ctx.fillStyle=dark; ctx.fillRect(cx-12, y+22, 24, 2);
+  // teeth
+  ctx.fillStyle="#fff";
+  for (let i=0;i<5;i++) ctx.fillRect(cx-10+i*5, y+24, 3, 4);
+  // glowing eye sockets + nasal cavity
+  const glow = charging ? "#ffd23d" : "#ff7a1a";
+  ctx.fillStyle="#141414";
+  ctx.fillRect(cx-11, y+7, 9, 8); ctx.fillRect(cx+2, y+7, 9, 8);
+  ctx.fillStyle=glow;
+  ctx.fillRect(cx-9, y+9, 5, 4); ctx.fillRect(cx+4, y+9, 5, 4);
+  ctx.fillStyle="#141414"; ctx.fillRect(cx-1, y+15, 3, 4);
 }
 
 // Three Tails — a three-tailed cat
@@ -1006,6 +1131,7 @@ function drawHUD(){
   ctx.fillStyle = music.on ? "#9dff5d" : "#777"; // music on/off (M)
   ctx.fillText(music.on ? "♪" : "♪̸", 78, 15);
   ctx.fillStyle = "#bfa9ff"; ctx.fillText("LV"+(levelIndex+1), 96, 15);
+  if (player.fireCharges>0){ ctx.fillStyle="#ff7a1a"; ctx.fillText("🔥×"+player.fireCharges, 126, 15); }
   // lives
   ctx.textAlign="right";
   ctx.fillStyle="#ff5d5d"; ctx.fillText("♥".repeat(Math.max(0,lives)), W-8, 15);
@@ -1020,10 +1146,10 @@ function drawHUD(){
   if (bossStarted && boss && boss.alive){
     const bw=160, bx=W/2-bw/2, by=24;
     ctx.fillStyle="rgba(0,0,0,.55)"; ctx.fillRect(bx-2,by-2,bw+4,12);
-    ctx.fillStyle="#ff2b2b"; ctx.fillRect(bx,by,bw*(3-boss.hits)/3,8);
+    ctx.fillStyle="#ff2b2b"; ctx.fillRect(bx,by,bw*(boss.maxHits-boss.hits)/boss.maxHits,8);
     ctx.strokeStyle="#fff"; ctx.lineWidth=1; ctx.strokeRect(bx-2,by-2,bw+4,12);
     ctx.fillStyle="#fff"; ctx.font="bold 8px monospace"; ctx.textAlign="center";
-    ctx.fillText("ZEROX BOSS", W/2, by+7);
+    ctx.fillText(boss.kind==="skeleton" ? "SKELETON LORD — FIRE (X) ONLY" : "ZEROX BOSS", W/2, by+7);
   }
   // flash msg
   if (msgT>0){
@@ -1160,6 +1286,7 @@ function render(){
   drawBoss();
   for (const e of enemies) drawEnemy(e);
   drawFireballs();
+  drawFlames();
   for (const pt of particles){
     ctx.globalAlpha = clamp01(pt.life);
     ctx.fillStyle = pt.color;
@@ -1182,7 +1309,7 @@ function showOverlay(title, text, btn){
 }
 function hideOverlay(){ overlay.classList.add("hidden"); }
 
-const MENU_TEXT = "Play as Three Tails, the three-tailed cat! LEVEL 1: dash the surface and beat the camouflaging ZEROX BOSS (stomp it 3 times while it's visible). LEVEL 2 — THE UNDERDEPTHS: a cave of pits, spikes and glowing gems. Reach both flags to win!";
+const MENU_TEXT = "Play as Three Tails, the three-tailed cat! LEVEL 1: dash the surface and stomp the giant ZEROX BOSS 3 times. LEVEL 2 — THE UNDERDEPTHS: collect 🔥 fire-breath power-ups (press X to breathe fire) and torch the fireball-hurling SKELETON LORD to reach the final flag!";
 function endIntro(){
   if (state !== "intro") return;
   state = "menu";
@@ -1223,7 +1350,7 @@ function gameOver(){
 function win(){
   state = "win"; sfx.win(); setTrack(TRACKS.main);
   const bonus = lives*100; score += bonus;
-  showOverlay("YOU WIN! ★", `You beat the Zerox boss AND the Underdepths! Final score ${score} (lives bonus +${bonus}). Legendary.`, "PLAY AGAIN");
+  showOverlay("YOU WIN! ★", `You stomped the Zerox boss AND torched the Skeleton Lord! Final score ${score} (lives bonus +${bonus}). Legendary.`, "PLAY AGAIN");
 }
 function onOverlayButton(){
   if (state === "levelclear") advanceLevel();
