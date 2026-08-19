@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Pixel Dash — Retro Platformer</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="wrap">
+  <h1>★ PIXEL DASH ★</h1>
+  <div id="stage">
+    <canvas id="game" width="960" height="540"></canvas>
+    <div id="overlay">
+      <h2 id="ov-title">PIXEL DASH</h2>
+      <p id="ov-text">Play as Three Tails, the three-tailed cat! Reach the flag, stomp the Zerox dogs, grab coins, and snag power-ups.</p>
+      <button class="btn" id="ov-btn">PLAY</button>
+      <p class="hint">← → / A D to move &nbsp;•&nbsp; Space / W / ↑ to jump &nbsp;•&nbsp; X to breathe fire &nbsp;•&nbsp; M to mute</p>
+    </div>
+  </div>
+  <div id="touch">
+    <div class="pad" id="pad-left">◀</div>
+    <div class="pad" id="pad-right">▶</div>
+    <div class="pad" id="pad-jump">▲</div>
+    <div class="pad" id="pad-fire">🔥</div>
+  </div>
+</div>
+<!--
+  Classic scripts on purpose: the game must run from file:// with no build
+  step, and ES modules are blocked by CORS there. Every file below only
+  DECLARES consts and functions — main.js (always last) is the only booter.
+  Adding a file? Slot it anywhere before main.js and keep declarations-only.
+  See ARCHITECTURE.md for the full map.
+-->
+<script src="js/tuning.js"></script>
+<script src="js/core.js"></script>
+<script src="js/data/tracks.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/sprites/cat.js"></script>
+<script src="js/sprites/dog.js"></script>
+<script src="js/themes.js"></script>
+<script src="js/particles.js"></script>
+<script src="js/projectiles.js"></script>
+<script src="js/powerups.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/bosses.js"></script>
+<script src="js/player.js"></script>
+<script src="js/stage.js"></script>
+<script src="js/data/levels.js"></script>
+<script src="js/level-loader.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/intro.js"></script>
+<script src="js/input.js"></script>
+<script src="js/flow.js"></script>
+<script src="js/debug.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
