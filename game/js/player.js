@@ -32,7 +32,7 @@ function updatePlayer(){
   const accel = PH.move * (p.speedT>0 ? TUNE.powerups.speed.accelMult : 1);
   if (keys.left){ p.vx -= accel; p.face=-1; }
   if (keys.right){ p.vx += accel; p.face=1; }
-  if (!keys.left && !keys.right) p.vx *= PH.friction;
+  if (!keys.left && !keys.right) p.vx *= (p.onGround ? PH.friction : PH.airFriction);
   const maxv = PH.maxVX * (p.speedT>0 ? TUNE.powerups.speed.maxMult : 1);
   p.vx = Math.max(-maxv, Math.min(maxv, p.vx));
 

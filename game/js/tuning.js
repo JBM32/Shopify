@@ -8,11 +8,12 @@ const TUNE = {
   view: { tile: 24, rows: 12 },
 
   physics: {
-    grav: 0.55,        // per-frame gravity for player and enemies
-    move: 0.7,         // player run acceleration
-    friction: 0.8,     // vx multiplier when no key is held
-    maxVX: 4.2,        // player top speed
-    jump: 11,          // jump launch speed
+    grav: 0.5,         // per-frame gravity for player and enemies
+    move: 0.25,        // player run acceleration (~15 frames to top speed)
+    friction: 0.87,    // ground vx multiplier when no key is held (gentle glide)
+    airFriction: 0.98, // in-air vx multiplier when no key is held (keep momentum)
+    maxVX: 3.4,        // player top speed
+    jump: 10.4,        // jump launch speed (same height as before at the softer grav)
     maxFall: 14,       // terminal fall speed (player + enemies)
     varJumpCap: 4,     // releasing jump caps upward speed here (variable jump)
   },
