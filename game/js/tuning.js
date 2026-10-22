@@ -7,23 +7,39 @@
 const TUNE = {
   view: { tile: 24, rows: 12 },
 
+  // shared world physics (enemies, boss hops)
   physics: {
-    grav: 0.55,        // per-frame gravity for player and enemies
-    move: 0.7,         // player run acceleration
-    friction: 0.8,     // vx multiplier when no key is held
-    maxVX: 4.2,        // player top speed
-    jump: 11,          // jump launch speed
-    maxFall: 14,       // terminal fall speed (player + enemies)
-    varJumpCap: 4,     // releasing jump caps upward speed here (variable jump)
+    grav: 0.55,        // per-frame gravity for enemies
+    maxFall: 14,       // enemy terminal fall speed
   },
 
   player: {
     w: 16, h: 22,      // hitbox (the sprite overdraws it)
     hurtFrames: 90,    // i-frames + blink after taking a hit
-    stompBounce: 8,    // upward speed after stomping an enemy
+    stompBounce: 7,    // upward speed after stomping an enemy (hold jump to go higher)
     fallPad: 60,       // how far below the level bottom counts as falling out
   },
 
+  // Three Tails' movement feel — modelled on Mario, scaled to 24px tiles.
+  // Gentle ramp-up, quick short stop, firm turnarounds; a jump arc with low
+  // gravity while jump is held on the way up and heavier gravity coming down.
+  // Measure changes with the frame-stepped numbers in ARCHITECTURE.md.
+  move: {
+    maxSpeed: 2.6,     // top run speed, px/frame (~1/3 s to reach it)
+    accel: 0.13,       // ground acceleration
+    decel: 0.3,        // ground braking when no direction is held (stops in < half a tile)
+    skid: 0.45,        // ground braking when pressing the opposite way
+    airAccel: 0.1,     // air control...
+    airTurn: 0.25,     // ...and air braking when reversing
+    airDrag: 0.03,     // slight air slowdown with no direction held (keeps momentum)
+    jump: 8.6,         // jump launch speed (full hold ≈ 4.5 tiles high, ≈ 4.5 tiles far)
+    holdGrav: 0.34,    // gravity while rising with jump held
+    fallGrav: 0.75,    // gravity otherwise (falling, or jump released)
+    releaseCap: 3.5,   // letting go of jump caps upward speed here (short hops)
+    maxFall: 8,        // terminal fall speed — readable, steerable falls
+    coyote: 6,         // frames you can still jump after running off a ledge
+    jumpBuffer: 8,     // frames a jump press is remembered before landing
+  },
   score: {
     coin: 10,
     enemy: 50,         // any enemy kill (stomp, star, or flame)
@@ -70,7 +86,7 @@ const TUNE = {
       w: 72, h: 80, maxHits: 3, arenaTiles: 12,
       speedBase: 0.7, speedPerHit: 0.25, // prowl speed grows as it gets hurt
       stompWindow: 34, hitCooldown: 45,  // grace so one stomp = one hit
-      bounce: 11,                        // player bounce after a boss stomp
+      bounce: 9.5,                       // player bounce after a boss stomp (hold jump: higher)
     },
     skeleton: {
       w: 60, h: 90, maxHits: 6, arenaTiles: 10,
@@ -82,7 +98,7 @@ const TUNE = {
     potato: {
       w: 70, h: 64, maxHits: 6, arenaTiles: 12,
       speedBase: 0.55, speedPerHit: 0.12,
-      stompWindow: 30, hitCooldown: 45, bounce: 11,  // stompable like Zerox...
+      stompWindow: 30, hitCooldown: 45, bounce: 9.5,  // stompable like Zerox...
       // ...and fire breath works too (both count toward maxHits)
       firstVolley: 80,                    // frames after the fight starts
       cadence: 170, cadencePerHit: 14, cadenceMin: 95, // frames between fry volleys

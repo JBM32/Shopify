@@ -7,6 +7,9 @@ function spawnPlayer(x, y){
     x, y, w: TUNE.player.w, h: TUNE.player.h, vx: 0, vy: 0,
     onGround: false, face: 1, anim: 0,
     hurtT: 0, fireCd: 0,
+    jumping: false,      // airborne from our own jump (release cap applies)
+    jumpWas: false,      // jump key last frame — one jump per press
+    coyoteT: 0, jumpBufT: 0,
   };
   // every registered powerup gets its timer/counter field auto-inited,
   // so a new powerup needs no edits here
@@ -19,7 +22,7 @@ function spawnPlayer(x, y){
 }
 
 function updatePlayer(){
-  const p = G.player, PH = TUNE.physics;
+  const p = G.player;
   p.anim += Math.abs(p.vx)*0.2 + 0.05;
 
   // timers (powerup effects + i-frames)
@@ -29,21 +32,37 @@ function updatePlayer(){
     if (tf && p[tf]>0) p[tf]--;
   }
 
-  const accel = PH.move * (p.speedT>0 ? TUNE.powerups.speed.accelMult : 1);
-  if (keys.left){ p.vx -= accel; p.face=-1; }
-  if (keys.right){ p.vx += accel; p.face=1; }
-  if (!keys.left && !keys.right) p.vx *= PH.friction;
-  const maxv = PH.maxVX * (p.speedT>0 ? TUNE.powerups.speed.maxMult : 1);
+  // --- run: Mario-style ramp-up, quick stop, firm skid on turnaround ---
+  const M = TUNE.move, spd = p.speedT>0 ? TUNE.powerups.speed : null;
+  const dir = (keys.right?1:0) - (keys.left?1:0);
+  const maxv = M.maxSpeed * (spd ? spd.maxMult : 1);
+  if (dir){
+    p.face = dir;
+    if (p.vx*dir < 0) p.vx += dir * (p.onGround ? M.skid : M.airTurn);                 // reversing: brake
+    else if (Math.abs(p.vx) < maxv) p.vx += dir * (p.onGround ? M.accel : M.airAccel) * (spd ? spd.accelMult : 1);
+  } else {
+    const brake = p.onGround ? M.decel : M.airDrag;
+    p.vx = Math.sign(p.vx) * Math.max(0, Math.abs(p.vx) - brake);
+  }
   p.vx = Math.max(-maxv, Math.min(maxv, p.vx));
 
-  if (keys.jump && p.onGround){
-    p.vy = -(PH.jump * (p.jumpT>0 ? TUNE.powerups.jump.jumpMult : 1));
-    p.onGround = false; sfx.jump();
+  // --- jump: one per press, buffered, with coyote time off ledges ---
+  const pressed = keys.jump && !p.jumpWas;
+  p.jumpWas = keys.jump;
+  if (pressed) p.jumpBufT = M.jumpBuffer; else if (p.jumpBufT>0) p.jumpBufT--;
+  if (p.onGround){ p.coyoteT = M.coyote; p.jumping = false; } else if (p.coyoteT>0) p.coyoteT--;
+  if (p.jumpBufT>0 && p.coyoteT>0){
+    p.vy = -(M.jump * (p.jumpT>0 ? TUNE.powerups.jump.jumpMult : 1));
+    p.onGround = false; p.jumping = true; p.jumpBufT = 0; p.coyoteT = 0; sfx.jump();
   }
-  if (!keys.jump && p.vy < -PH.varJumpCap) p.vy = -PH.varJumpCap; // variable jump height
+  // variable height: letting go early cuts the rise. A jump ends once you
+  // start falling, so a stomp bounce (launched while falling) is never cut.
+  if (p.vy > 0) p.jumping = false;
+  if (p.jumping && !keys.jump && p.vy < -M.releaseCap) p.vy = -M.releaseCap;
 
-  p.vy += PH.grav;
-  if (p.vy > PH.maxFall) p.vy = PH.maxFall;
+  // floaty while rising with jump held, heavier otherwise
+  p.vy += (p.vy < 0 && keys.jump) ? M.holdGrav : M.fallGrav;
+  if (p.vy > M.maxFall) p.vy = M.maxFall;
   moveAndCollide(p);
 
   // fall off world

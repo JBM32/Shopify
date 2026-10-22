@@ -21,7 +21,11 @@ open game/index.html      # macOS
 | Start / Restart | Enter or the on-screen button | tap button |
 | Mute / unmute music | M | — |
 
-Jump height is variable — tap for a hop, hold for a full leap.
+Movement is tuned to feel like Mario: Three Tails builds up speed
+smoothly, stops on a dime and skids when you turn. Jump height is variable —
+tap for a hop, hold for a full leap (and hold it when you stomp to bounce
+higher). Jumps are forgiving: a press just before landing still counts, and
+you can still jump for a split second after running off a ledge.
 
 ## Levels
 

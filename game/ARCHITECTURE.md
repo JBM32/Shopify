@@ -48,7 +48,10 @@ file that executes anything at load; every other file only declares.
 ## Change recipes (do the smallest thing on this list)
 
 - **Tweak difficulty / physics / scoring / durations** → edit `js/tuning.js`.
-  Nothing else. (Live-experiment first via the console: `PD.TUNE.physics.jump = 13`.)
+  Nothing else. (Live-experiment first via the console: `PD.TUNE.move.maxSpeed = 3`.)
+  Hero movement feel lives in `TUNE.move`; after changing it run
+  `node dev/feel.js` (frame-stepped speed/stop/jump numbers + checks every
+  pit is still jumpable).
 - **Reskin a theme** → edit hex strings in that theme's `palette` block in
   `js/themes.js`. Draw fns only reference palette keys, so nothing else moves.
 - **New enemy** → one entry in `ENEMIES` (`js/enemies.js`; reuse
@@ -122,6 +125,13 @@ file that executes anything at load; every other file only declares.
   original quirk kept so messages keep fading on overlay screens.
 - Guinea-pig star-kills flash "+50" but Zerox star-kills don't — original
   behavior, kept.
+- **Movement retune (2026-10):** the original run (4.2 px/f top speed in
+  7 frames, multiplicative friction, auto-repeat jump on hold) was
+  reported as twitchy and slidey. Replaced by the Mario-style model in
+  `TUNE.move` + `updatePlayer()`: linear accel/brake/skid, hold-for-low-
+  gravity jump arc with a release cap, coyote time, jump buffer, one jump
+  per press. Jump HEIGHT was kept equal (~105px) so every level stays
+  reachable — keep it there unless you re-check the levels.
 - Fire charges (`fireCharges`) and `fireCd` deliberately SURVIVE
   checkpoint respawn; timed powerups clear.
 - Enemies never head-bonk solids (only landing is resolved) — original.
@@ -138,12 +148,16 @@ file that executes anything at load; every other file only declares.
   flip to false to ship).
 - **F1** — debug overlay (state, entity counts, player pos).
 - **`?lv=3`** — boot straight into level 3 (`index.html?lv=3`, works on file://).
+- **`node dev/smoke.js`** — full gameplay loop, all three bosses, no console errors.
+- **`node dev/feel.js`** — movement-feel numbers + every pit still jumpable.
 - **`window.PD`** — console handle: `PD.G` (state), `PD.TUNE`, registries,
   `PD.buildLevel`, `PD.setTrack`… Used by the Playwright smoke test too.
 
 ## QA checklist (after touching core systems)
 
-Jump arc + variable jump (tap vs hold) · stomp bounce · checkpoint respawn
+Jump arc + variable jump (tap vs hold) · one jump per press, buffered
+jump, coyote jump off ledges · `node dev/feel.js` passes · stomp bounce
+(hold jump = higher) · checkpoint respawn
 clears SPD/JMP/★ but keeps 🔥 · Zerox boss: 3 stomps, 45-frame grace,
 gate opens · Skeleton Lord: immune to stomps, 6 flame hits, aimed fireballs
 · Potato Monster: stomps AND flames hurt it (6 hits), fry volleys grow
