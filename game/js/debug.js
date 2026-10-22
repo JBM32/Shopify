@@ -1,7 +1,7 @@
 // debug.js — dev-only helpers. Flip DEV.cheats to false to ship.
 // • O / I keys: jump to next / previous level (keeps lives & score)
 // • F1: toggle the debug overlay (state, counts, player position)
-// • ?lv=N in the URL: boot straight into level N (works on file:// too)
+// • ?lv=N or #lvN in the URL: boot straight into level N (works on file:// too)
 // • window.PD: console/test handle to all state, tuning and registries
 "use strict";
 
@@ -20,10 +20,10 @@ function cheatJumpLevel(dir){
   msgFlash("CHEAT → LV" + (G.levelIndex+1) + " " + LEVELS[G.levelIndex].name);
 }
 
-// ?lv=N — skip intro/menu and boot straight into a level (called by main.js)
+// ?lv=N / #lvN — skip intro/menu and boot straight into a level (called by main.js)
 function bootFromQuery(){
   if (!DEV.cheats) return;
-  const m = /[?&]lv=(\d+)/.exec(location.search);
+  const m = /(?:[?&]lv=|#lv)(\d+)/.exec(location.search + location.hash);
   if (!m) return;
   const n = Math.max(1, Math.min(LEVELS.length, parseInt(m[1], 10))) - 1;
   startGame();
