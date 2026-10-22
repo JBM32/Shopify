@@ -14,7 +14,7 @@ function showOverlay(title, text, btn){
 }
 function hideOverlay(){ overlay.classList.add("hidden"); }
 
-const MENU_TEXT = "Play as Three Tails, the three-tailed cat! LEVEL 1: dash the surface and stomp the giant ZEROX BOSS 3 times. LEVEL 2 — THE UNDERDEPTHS: collect 🔥 fire-breath power-ups (press X to breathe fire) and torch the fireball-hurling SKELETON LORD to reach the final flag!";
+const MENU_TEXT = "Play as Three Tails, the three-tailed cat! LEVEL 1: dash the surface and stomp the giant ZEROX BOSS 3 times. LEVEL 2 — THE UNDERDEPTHS: collect 🔥 fire-breath power-ups (press X to breathe fire) and torch the fireball-hurling SKELETON LORD. LEVEL 3 — SPUDSWORTH CASTLE: battle the potato men and stomp or torch the POTATO MONSTER before its army of evil mini French fries runs you down!";
 
 function endIntro(){
   if (G.state !== "intro") return;
@@ -37,7 +37,7 @@ function reachFlag(){
   if (G.levelIndex < LEVELS.length - 1){
     G.state = "levelclear"; sfx.win();
     const next = LEVELS[G.levelIndex+1];
-    showOverlay("LEVEL CLEAR!", `Level ${G.levelIndex+1} complete — score ${G.score}. Next: ${next.name}. Descend!`, "DESCEND ▼");
+    showOverlay("LEVEL CLEAR!", `Level ${G.levelIndex+1} complete — score ${G.score}. Next: ${next.name}. ${next.arrive || "Onward!"}`, next.arriveBtn || "NEXT ▶");
   } else {
     win();
   }
@@ -66,7 +66,7 @@ function gameOver(){
 function win(){
   G.state = "win"; sfx.win(); setTrack("main");
   const bonus = G.lives * TUNE.score.lifeBonus; G.score += bonus;
-  showOverlay("YOU WIN! ★", `You stomped the Zerox boss AND torched the Skeleton Lord! Final score ${G.score} (lives bonus +${bonus}). Legendary.`, "PLAY AGAIN");
+  showOverlay("YOU WIN! ★", `You stomped the Zerox boss, torched the Skeleton Lord AND mashed the Potato Monster! Final score ${G.score} (lives bonus +${bonus}). Legendary.`, "PLAY AGAIN");
 }
 
 function onOverlayButton(){

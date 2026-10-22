@@ -27,11 +27,12 @@ file that executes anything at load; every other file only declares.
 | `js/audio.js` | SFX beeps + the 32-step sequencer; `ensureAudio`, `setTrack(name)`, `toggleMusic` |
 | `js/sprites/cat.js` | Three Tails: texel maps + `drawCatSprite` (pure) |
 | `js/sprites/dog.js` | Zerox dog sprite + `drawSpriteAt` mirror/scale wrapper (pure) |
+| `js/sprites/potato.js` | castle potato men (spud / hot spud) + evil mini French fry sprites (pure) |
 | `js/themes.js` | `THEMES` — per-theme palette + background/tile/coin drawing (pure) |
 | `js/particles.js` | spawn/update/draw of burst particles |
 | `js/projectiles.js` | enemy fireballs + player fire breath (spend, fly, hit) |
 | `js/powerups.js` | `POWERUPS` registry + pickup/draw loops |
-| `js/enemies.js` | `ENEMIES` registry + shared walk/stomp/kill helpers |
+| `js/enemies.js` | `ENEMIES` registry + shared walk/stomp/kill helpers + `spawnEnemy` (mid-level spawns, e.g. boss minions) |
 | `js/bosses.js` | `BOSSES` registry + arena/hit/defeat shell + health pips |
 | `js/player.js` | spawn/update/damage/draw of the hero |
 | `js/stage.js` | tiles, spikes, checkpoints, coins, flag, camera |
@@ -52,7 +53,10 @@ file that executes anything at load; every other file only declares.
   `js/themes.js`. Draw fns only reference palette keys, so nothing else moves.
 - **New enemy** → one entry in `ENEMIES` (`js/enemies.js`; reuse
   `walkAndPatrol`/`isStomping`/`killEnemy`), numbers in `TUNE.enemies`, tile
-  char stamped into a level. A recolored walker is ~15 lines.
+  char stamped into a level. A recolored walker is ~15 lines. A *reskin*
+  with the same behaviour delegates: `update(e){ ENEMIES.zerox.update.call(this, e); }`
+  (see `spud`/`hotspud`). Bosses that summon minions call `spawnEnemy(kind,x,y,extra)`
+  (see the Potato Monster's fries).
 - **New powerup** → one entry in `POWERUPS` (`js/powerups.js`). `timerField`
   is auto-inited, auto-ticked, auto-cleared on respawn, and auto-shown in the
   HUD. Then read the field where the effect applies (e.g. one `if` in
@@ -133,7 +137,7 @@ file that executes anything at load; every other file only declares.
 - **O / I** — next / previous level (gate: `DEV.cheats`, currently true;
   flip to false to ship).
 - **F1** — debug overlay (state, entity counts, player pos).
-- **`?lv=2`** — boot straight into level 2 (`index.html?lv=2`, works on file://).
+- **`?lv=3`** — boot straight into level 3 (`index.html?lv=3`, works on file://).
 - **`window.PD`** — console handle: `PD.G` (state), `PD.TUNE`, registries,
   `PD.buildLevel`, `PD.setTrack`… Used by the Playwright smoke test too.
 
@@ -142,6 +146,8 @@ file that executes anything at load; every other file only declares.
 Jump arc + variable jump (tap vs hold) · stomp bounce · checkpoint respawn
 clears SPD/JMP/★ but keeps 🔥 · Zerox boss: 3 stomps, 45-frame grace,
 gate opens · Skeleton Lord: immune to stomps, 6 flame hits, aimed fireballs
-· music switches main→boss→cave correctly · M mutes music but not SFX ·
+· Potato Monster: stomps AND flames hurt it (6 hits), fry volleys grow
+  as it's hurt, it hops from 3 hits, fries crumble when it dies
+· music switches main→boss→cave→boss→castle correctly · M mutes music but not SFX ·
 touch pads on a phone · intro skippable by Space/Enter/click · O/I/F1/?lv=
 · no `[pixel-dash]` validator errors in the console.

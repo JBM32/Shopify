@@ -89,6 +89,77 @@ const BOSSES = {
     },
     draw(b, sx, sy, hurtFlash){ drawSkeleton(b, sx, sy, hurtFlash); },
   },
+
+  // The Potato Monster — a hulking spud that lumbers about its throne room
+  // and spews volleys of running, evil mini French fries (ENEMIES.fry).
+  // Stomp it OR torch it. Once hurt enough it starts hopping, too.
+  potato: {
+    tile:"Q", hurtBy:{ stomp:true, flame:true },
+    introMsg:"⚠  POTATO MONSTER — STOMP OR TORCH IT!  ⚠",
+    hudName:"POTATO MONSTER", hitName:"POTATO",
+    spawn(col, barrierX){
+      const T = TUNE.bosses.potato;
+      const bx = col*TILE + TILE/2 - T.w/2;
+      return {
+        kind:"potato", x: bx, y: GROUND_TOP - T.h, w: T.w, h: T.h,
+        dir: -1, hits: 0, maxHits: T.maxHits, flashT: 0, cooldown: 0,
+        vy: 0, air: false, timer: T.firstVolley, windup: 0, mouth: 0, volleys: 0, wob: 0,
+        alive: true, defeated: false,
+        arenaL: Math.max(0, bx - T.arenaTiles*TILE), arenaR: barrierX,
+      };
+    },
+    update(b, p){
+      const T = TUNE.bosses.potato;
+      b.wob += 0.08;
+      if (b.mouth>0) b.mouth--;
+      if (b.windup>0){
+        // rooted in place, quivering, mouth agape... then a volley of fries
+        if (--b.windup === 0) this.volley(b, p);
+      } else {
+        const spd = (T.speedBase + b.hits*T.speedPerHit) * (b.air ? T.hopSpeedMult : 1);
+        b.x += b.dir*spd;
+        if (--b.timer <= 0 && !b.air){ b.windup = T.windup; sfx.bossIntro(); }
+      }
+      if (b.x < b.arenaL){ b.x = b.arenaL; b.dir = 1; }
+      if (b.x + b.w > b.arenaR){ b.x = b.arenaR - b.w; b.dir = -1; }
+      // hop arc; lands with a thud on the throne-room floor
+      if (b.air){
+        b.vy += TUNE.physics.grav; b.y += b.vy;
+        if (b.y >= GROUND_TOP - b.h){
+          b.y = GROUND_TOP - b.h; b.vy = 0; b.air = false;
+          spawnParticles(b.x+b.w/2, GROUND_TOP-4, "#9c8f80", 14); sfx.stomp();
+        }
+      }
+      // player interaction — stomp (or star) to hurt it; fire works too (projectiles.js)
+      if (b.cooldown<=0 && aabb(p,b)){
+        const stomping = p.vy>0 && (p.y+p.h) - b.y < T.stompWindow;
+        if (stomping || p.starT>0) stompHitBoss(b);
+        else damage(false);
+      }
+    },
+    // spew a fan of fries — most toward the player, some flung behind
+    volley(b, p){
+      const T = TUNE.bosses.potato;
+      const live = G.enemies.filter(e => e.alive && e.minion).length;
+      const n = Math.min(T.volleyBase + Math.floor(b.hits*T.volleyPerHit), T.maxFries - live);
+      const toward = p.x+p.w/2 < b.x+b.w/2 ? -1 : 1;
+      const mx = b.x + b.w/2 + toward*b.w*0.3, my = b.y + 30;
+      for (let i=0; i<n; i++){
+        const side = Math.random() < T.backFryChance ? -toward : toward;
+        spawnEnemy("fry", mx, my, {
+          x: mx - FRY_W/2, y: my,
+          vx: side*(T.fryVX + Math.random()*T.fryVXRand),
+          vy: -(T.fryVY + Math.random()*T.fryVYRand),
+          air: true, minion: true, life: T.fryLife,
+        });
+      }
+      spawnParticles(mx, my, "#ffd23d", 10);
+      b.mouth = 26; b.volleys++; sfx.fire();
+      b.timer = Math.max(T.cadenceMin, T.cadence - b.hits*T.cadencePerHit);
+      if (b.hits >= T.hopFromHit && b.volleys % 2 === 0){ b.air = true; b.vy = -T.hopVY; b.dir = toward; }
+    },
+    draw(b, sx, sy, hurtFlash){ drawPotatoMonster(b, sx, sy, hurtFlash); },
+  },
 };
 
 // ---- shared shell ---------------------------------------------------------
@@ -213,4 +284,69 @@ function drawSkeleton(b, x, y, hurtFlash){
   ctx.fillStyle=glow;
   ctx.fillRect(cx-9, y+9, 5, 4); ctx.fillRect(cx+4, y+9, 5, 4);
   ctx.fillStyle="#141414"; ctx.fillRect(cx-1, y+15, 3, 4);
+}
+
+// The Potato Monster's sprite (kept beside its registry entry). Drawn facing
+// right, mirrored for b.dir < 0.
+function drawPotatoMonster(b, x, y, hurtFlash){
+  const w = b.w, h = b.h;
+  const quiver = b.windup>0 ? Math.round(Math.sin(b.windup*1.7)*2) : 0;
+  const squash = b.air ? -3 : Math.round(Math.sin(b.wob*2)*1.5);   // waddle bob
+  const gaping = b.windup>0 || b.mouth>0;
+  const body = hurtFlash ? "#ffe0a8" : "#c18f52", light = hurtFlash ? "#fff1d1" : "#dcae6e";
+  const shade = "#9c6d36", spot = "#6f4a22";
+  ctx.save();
+  ctx.translate(x + w/2 + quiver, y);
+  if (b.dir < 0) ctx.scale(-1, 1);
+  const cx = 0, cy = h/2 + 2 - squash/2;
+  // stumpy legs (alternate while walking)
+  const step = b.air ? 0 : Math.floor(b.wob*3)%2;
+  ctx.fillStyle="#000"; ctx.fillRect(-21, h-12, 14, 13-step*2); ctx.fillRect(7, h-12, 14, 11+step*2);
+  ctx.fillStyle=shade;  ctx.fillRect(-20, h-12, 12, 11-step*2); ctx.fillRect(8, h-12, 12, 9+step*2);
+  // lumpy body: outline, base, a couple of lumps, top light, bottom shade
+  ctx.fillStyle="#000";
+  ctx.beginPath(); ctx.ellipse(cx, cy, w/2+2, h/2-2+squash/2, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx-14, cy-16, 16, 12, -0.3, 0, 7); ctx.fill();
+  ctx.fillStyle=body;
+  ctx.beginPath(); ctx.ellipse(cx, cy, w/2, h/2-4+squash/2, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx-14, cy-16, 14, 10, -0.3, 0, 7); ctx.fill();
+  ctx.fillStyle=shade;
+  ctx.beginPath(); ctx.ellipse(cx+2, cy+14, w/2-6, 10, 0, 0, Math.PI); ctx.fill();
+  ctx.fillStyle=light;
+  ctx.beginPath(); ctx.ellipse(cx-12, cy-20, 8, 4, -0.3, 0, 7); ctx.fill();
+  // potato "eyes" (spots) — with sprouts wiggling on top of its head
+  ctx.fillStyle=spot;
+  ctx.fillRect(cx-26, cy-2, 4, 3); ctx.fillRect(cx-18, cy+10, 3, 3); ctx.fillRect(cx+20, cy+8, 4, 3);
+  ctx.fillRect(cx-4, cy-26, 3, 3);
+  ctx.strokeStyle="#4fa82e"; ctx.lineWidth=2;
+  const sw = Math.sin(b.wob*3)*3;
+  ctx.beginPath(); ctx.moveTo(cx-3, cy-26); ctx.lineTo(cx-6+sw, cy-36); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-1, cy-26); ctx.lineTo(cx+5+sw, cy-33); ctx.stroke();
+  ctx.fillStyle="#7be04a"; ctx.fillRect(cx-8+sw, cy-38, 4, 3); ctx.fillRect(cx+4+sw, cy-35, 4, 3);
+  // stubby arms — thrown up while winding up a volley
+  const armY = b.windup>0 ? cy-16 : cy+2 + Math.round(Math.sin(b.wob*3)*2);
+  ctx.fillStyle="#000"; ctx.fillRect(cx-w/2-8, armY-1, 11, 8); ctx.fillRect(cx+w/2-3, armY-1, 11, 8);
+  ctx.fillStyle=shade;  ctx.fillRect(cx-w/2-7, armY, 9, 6);   ctx.fillRect(cx+w/2-2, armY, 9, 6);
+  // furious eyes (forward-facing) + heavy slanted brows
+  ctx.fillStyle="#fff";
+  ctx.fillRect(cx+2, cy-14, 11, 10); ctx.fillRect(cx+17, cy-14, 9, 10);
+  ctx.fillStyle="#ff2b2b"; ctx.fillRect(cx+7, cy-11, 5, 6); ctx.fillRect(cx+21, cy-11, 4, 6);
+  ctx.fillStyle="#000";    ctx.fillRect(cx+9, cy-9, 2, 3);  ctx.fillRect(cx+22, cy-9, 2, 3);
+  ctx.fillStyle="#2a1606";
+  ctx.beginPath(); ctx.moveTo(cx, cy-20); ctx.lineTo(cx+14, cy-14); ctx.lineTo(cx+14, cy-17); ctx.lineTo(cx+1, cy-23); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(cx+28, cy-21); ctx.lineTo(cx+16, cy-14); ctx.lineTo(cx+16, cy-17); ctx.lineTo(cx+27, cy-24); ctx.fill();
+  // mouth: a jagged grin, or a gaping maw full of fries mid-volley
+  if (gaping){
+    ctx.fillStyle="#2a0a06"; ctx.fillRect(cx+2, cy+1, 24, 14);
+    ctx.fillStyle="#7a1a10"; ctx.fillRect(cx+4, cy+10, 20, 5);           // tongue
+    ctx.fillStyle="#ffd23d";                                             // fries peeking out
+    ctx.fillRect(cx+7, cy+4, 3, 8); ctx.fillRect(cx+13, cy+2, 3, 9); ctx.fillRect(cx+19, cy+5, 3, 7);
+    ctx.fillStyle="#fff";
+    for (let i=0;i<4;i++){ ctx.fillRect(cx+3+i*6, cy+1, 3, 3); ctx.fillRect(cx+5+i*6, cy+13, 3, 2); }
+  } else {
+    ctx.fillStyle="#2a0a06"; ctx.fillRect(cx+2, cy+4, 24, 5);
+    ctx.fillStyle="#fff";
+    for (let i=0;i<4;i++) ctx.fillRect(cx+3+i*6, cy+4, 3, 3);
+  }
+  ctx.restore();
 }

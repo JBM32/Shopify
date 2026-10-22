@@ -43,4 +43,16 @@ const TRACKS = {
       "F1",0,0,0,0,0,0,0,"E1",0,0,0,0,0,0,0
     ],
   },
+  // stately D-minor castle march (square "harpsichord" lead, marching drums)
+  castle: {
+    bpm: 120, leadType: "square", leadVol: 0.045, bassVol: 0.09, drums: "full",
+    lead: [
+      "D5",0,"A4",0,"D5",0,"F5",0,"E5",0,"D5",0,"C#5",0,"A4",0,
+      "D5",0,"F5",0,"G5",0,"F5",0,"E5",0,"C#5",0,"D5",0,0,0
+    ],
+    bass: [
+      "D2",0,0,0,"D2",0,"A1",0,"A#1",0,0,0,"A1",0,0,0,
+      "D2",0,0,0,"D2",0,"F2",0,"G2",0,0,0,"A1",0,"A1",0
+    ],
+  },
 };

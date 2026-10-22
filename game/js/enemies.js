@@ -51,6 +51,14 @@ function isStomping(p, e){
   return p.vy>0 && (p.y+p.h) - e.y < TUNE.enemies.stompWindow;
 }
 
+// spawn an enemy mid-level (e.g. a boss launching minions); extra fields
+// override the kind's spawn defaults. The only way outside code adds to G.enemies.
+function spawnEnemy(kind, x, y, extra){
+  const e = Object.assign(ENEMIES[kind].spawn(x, y), extra);
+  G.enemies.push(e);
+  return e;
+}
+
 // ---- the registry --------------------------------------------------------
 
 const ENEMIES = {
@@ -128,6 +136,76 @@ const ENEMIES = {
       ctx.restore();
     },
   },
+
+  // Spud — the castle's potato man. Zerox behaviour, potato body.
+  spud: {
+    tile:"U", colors: POTATO_COLORS, burst:"#c79a5b",
+    spawn(x, y){ return { ...ENEMIES.zerox.spawn(x, y), kind:"spud" }; },
+    update(e){ ENEMIES.zerox.update.call(this, e); },
+    draw(e){
+      const face = e.vx<0 ? -1 : 1;
+      drawSpriteAt(ph => drawPotatoSprite(ph, this.colors, 0),
+                   face<0 ? px(e.x)+e.w : px(e.x), py(e.y), 1, face, Date.now()/140);
+    },
+  },
+
+  // Hot spud — a red-hot potato man. Fire guinea pig behaviour: sits tight,
+  // faces the player, spits fireballs.
+  hotspud: {
+    tile:"H", colors: HOT_POTATO_COLORS, burst:"#ff7a1a",
+    spawn(x, y){ return { ...ENEMIES.guinea.spawn(x, y), kind:"hotspud" }; },
+    update(e){ ENEMIES.guinea.update.call(this, e); },
+    draw(e){
+      const face = e.face<0 ? -1 : 1, charge = e.fireT < 16 ? 1 : 0;
+      drawSpriteAt(ph => drawPotatoSprite(ph, this.colors, charge),
+                   face<0 ? px(e.x)+e.w : px(e.x), py(e.y), 1, face, Date.now()/400);
+    },
+  },
+
+  // Fry — an evil mini French fry that scurries straight at the player.
+  // The Potato Monster spews these (minion:true, launched with air:true);
+  // minions crumble when their life runs out or the boss falls.
+  fry: {
+    tile:"Y", burst:"#ffd23d",
+    spawn(x, y){
+      const T = TUNE.enemies.fry;
+      return { kind:"fry", x:x+8, y:y+TILE-FRY_H-3, w:FRY_W+1, h:FRY_H, vx:-T.speed, vy:0,
+               alive:true, air:false, minion:false, life:Infinity, turnT:0,
+               spdMul: 1 + (Math.random()-0.5)*T.speedVar };            // so a swarm spreads out
+    },
+    update(e){
+      const p = G.player, T = TUNE.enemies.fry;
+      if (e.minion && (--e.life <= 0 || !G.boss || !G.boss.alive)){   // crumble
+        e.alive = false; spawnParticles(e.x+e.w/2, e.y+e.h/2, this.burst, 5); return;
+      }
+      enemyGravity(e);
+      if (e.air){
+        // launched in an arc: fly, bounce off walls, start running on landing
+        e.x += e.vx;
+        for (const s of G.solids){ if (aabb(e,s)){ e.x -= e.vx; e.vx *= -1; break; } }
+        enemyLand(e);
+        if (e.vy === 0){ e.air = false; e.vx = Math.sign(e.vx||1)*T.speed*e.spdMul; }
+      } else {
+        // chase: re-aim at the player after a short reaction delay
+        const want = p.x+p.w/2 < e.x+e.w/2 ? -1 : 1;
+        if (Math.abs(p.x-e.x) < T.chaseRange && Math.sign(e.vx) !== want && --e.turnT <= 0){
+          e.vx = want*T.speed*e.spdMul; e.turnT = T.turnDelay;
+        }
+        walkAndPatrol(e);
+      }
+      if (aabb(p,e)){
+        if (p.starT>0){ killEnemy(e, this.burst); }
+        else if (isStomping(p,e)){
+          killEnemy(e, this.burst); p.vy = -TUNE.player.stompBounce;
+          msgFlash("+"+TUNE.score.enemy);
+        } else damage(false);
+      }
+    },
+    draw(e){
+      const face = e.vx<0 ? -1 : 1;
+      drawSpriteAt(drawFrySprite, face<0 ? px(e.x)+e.w : px(e.x), py(e.y), 1, face, Date.now()/55);
+    },
+  },
 };
 
 function updateEnemies(){
@@ -135,6 +213,8 @@ function updateEnemies(){
     if (!e.alive) continue;
     ENEMIES[e.kind].update(e);
   }
+  // drop dead boss minions so long fights don't grow the array forever
+  if (G.enemies.some(e => !e.alive && e.minion)) G.enemies = G.enemies.filter(e => e.alive || !e.minion);
 }
 
 function drawEnemies(){

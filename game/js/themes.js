@@ -143,6 +143,114 @@ const THEMES = {
       ctx.beginPath(); ctx.moveTo(x,y-6); ctx.lineTo(x+2,y-1); ctx.lineTo(x-2,y-1); ctx.fill();
     },
   },
+
+  // moonlit castle: night sky, far towers with lit windows, a near curtain
+  // wall with arched windows, flickering torches and hanging banners
+  castle: {
+    palette: {
+      skyTop:"#120e2a", skyBot:"#3b2c5e", star:"#fff6d8",
+      moon:"#f4ecc8", moonShade:"#d9cf9f",
+      farTower:"#231c3d", window:"#ffcf6b",
+      nearWall:"#2e2747", nearMortar:"#262040", arch:"#120e22",
+      torchPole:"#4a3a2a", flameOut:"#ff6a1a", flameIn:"#ffd23d", torchGlow:"rgba(255,170,60,.18)",
+      banner:"#a8233a", bannerTrim:"#ffcf3d",
+      stone:"#6d6a7c", stoneMortar:"#4c4a5a", stoneTop:"#8d8a9e", stoneShade:"rgba(0,0,0,.18)",
+      plank:"#7a4f2a", plankLine:"#5a3818", plankTop:"#9a6a3c", bolt:"#3a3a44",
+      coin:"#ffcf3d", coinShine:"#fff4b8", coinJewel:"#e2233f",
+    },
+    drawBackground(camX){
+      const P = this.palette;
+      const g = ctx.createLinearGradient(0,0,0,H);
+      g.addColorStop(0,P.skyTop); g.addColorStop(1,P.skyBot);
+      ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      // twinkling stars
+      ctx.fillStyle=P.star;
+      for (let i=0;i<34;i++){
+        ctx.globalAlpha = 0.35 + 0.35*Math.sin(Date.now()/420 + i*1.7);
+        const sx = wrap(i*97 - camX*0.05, W), sy = 8 + (i*41)%110;
+        ctx.fillRect(sx, sy, i%5===0?2:1, i%5===0?2:1);
+      }
+      ctx.globalAlpha=1;
+      // big moon (barely drifts)
+      const mx = W*0.78 - camX*0.02, my = 52;
+      ctx.fillStyle=P.moon; ctx.beginPath(); ctx.arc(mx,my,24,0,7); ctx.fill();
+      ctx.fillStyle=P.moonShade;
+      ctx.beginPath(); ctx.arc(mx-8,my-5,5,0,7); ctx.fill();
+      ctx.beginPath(); ctx.arc(mx+7,my+8,4,0,7); ctx.fill();
+      // far towers with crenellations and lit windows (slow parallax)
+      const span = 150;
+      for (let i=-1;i<W/span+2;i++){
+        const n = Math.floor(camX*0.25/span) + i;
+        const tx = i*span - wrap(camX*0.25, span) + rnd(n)*40;
+        const th = 90 + rnd(n+7)*70, tw = 34 + rnd(n+3)*16, top = H-26-th;
+        ctx.fillStyle=P.farTower;
+        ctx.fillRect(tx, top, tw, th+26);
+        for (let c=0;c<tw;c+=10) ctx.fillRect(tx+c, top-7, 6, 7);          // merlons
+        ctx.fillStyle=P.window;
+        ctx.globalAlpha = 0.7 + 0.3*Math.sin(Date.now()/700 + n);
+        ctx.fillRect(tx+tw/2-2, top+16, 4, 7);
+        if (th > 120) ctx.fillRect(tx+tw/2-2, top+44, 4, 7);
+        ctx.globalAlpha=1;
+      }
+      // near curtain wall: stone courses, arched windows, torches, banners
+      const wallTop = 150, bay = 120;
+      ctx.fillStyle=P.nearWall; ctx.fillRect(0, wallTop, W, H-wallTop);
+      ctx.fillStyle=P.nearMortar;
+      for (let yy=wallTop+14; yy<H; yy+=14) ctx.fillRect(0, yy, W, 1);
+      for (let i=-1;i<W/bay+2;i++){
+        const bx = i*bay - wrap(camX*0.6, bay);
+        const n = Math.floor(camX*0.6/bay) + i;
+        // merlons along the top of the near wall
+        ctx.fillStyle=P.nearWall;
+        ctx.fillRect(bx, wallTop-10, 18, 10); ctx.fillRect(bx+40, wallTop-10, 18, 10); ctx.fillRect(bx+80, wallTop-10, 18, 10);
+        // arched window
+        ctx.fillStyle=P.arch;
+        ctx.fillRect(bx+50, wallTop+22, 16, 22);
+        ctx.beginPath(); ctx.arc(bx+58, wallTop+22, 8, Math.PI, 0); ctx.fill();
+        // alternate a banner and a torch per bay
+        if (n % 2 === 0){
+          ctx.fillStyle=P.banner; ctx.fillRect(bx+12, wallTop+6, 16, 34);
+          ctx.beginPath(); ctx.moveTo(bx+12,wallTop+40); ctx.lineTo(bx+20,wallTop+34); ctx.lineTo(bx+28,wallTop+40); ctx.fill();
+          ctx.fillStyle=P.bannerTrim; ctx.fillRect(bx+12, wallTop+6, 16, 2); ctx.fillRect(bx+18, wallTop+16, 4, 4);
+        } else {
+          const fl = Math.sin(Date.now()/90 + n*3);
+          ctx.fillStyle=P.torchGlow; ctx.beginPath(); ctx.arc(bx+20, wallTop+22, 18+fl*2, 0, 7); ctx.fill();
+          ctx.fillStyle=P.torchPole; ctx.fillRect(bx+18, wallTop+24, 4, 14);
+          ctx.fillStyle=P.flameOut; ctx.fillRect(bx+16, wallTop+15-fl, 8, 9+fl);
+          ctx.fillStyle=P.flameIn;  ctx.fillRect(bx+18, wallTop+19-fl, 4, 5+fl);
+        }
+      }
+    },
+    // grey stone blocks; wooden plank ledges with iron bolts
+    drawTile(s, x, y){
+      const P = this.palette;
+      if (s.type==="brick"){
+        ctx.fillStyle=P.stone; ctx.fillRect(x,y,TILE,TILE);
+        ctx.fillStyle=P.stoneMortar;
+        ctx.fillRect(x,y+TILE/2-1,TILE,2);
+        const odd = (s.y/TILE)%2;                             // staggered joints
+        ctx.fillRect(x+(odd?0:TILE/2-1), y, 2, TILE/2);
+        ctx.fillRect(x+(odd?TILE/2-1:0), y+TILE/2, 2, TILE/2);
+        ctx.fillStyle=P.stoneTop; ctx.fillRect(x,y,TILE,2);
+        ctx.fillStyle=P.stoneShade; ctx.fillRect(x,y+TILE-2,TILE,2);
+      } else {
+        ctx.fillStyle=P.plank; ctx.fillRect(x,y,TILE,TILE-8);
+        ctx.fillStyle=P.plankTop; ctx.fillRect(x,y,TILE,3);
+        ctx.fillStyle=P.plankLine; ctx.fillRect(x,y+8,TILE,1); ctx.fillRect(x+TILE-1,y,1,TILE-8);
+        ctx.fillStyle=P.bolt; ctx.fillRect(x+3,y+4,2,2); ctx.fillRect(x+TILE-6,y+11,2,2);
+      }
+    },
+    // spinning gold coin set with a ruby
+    drawCoin(c, x, y){
+      const P = this.palette;
+      const wob = Math.abs(Math.cos(c.t))*4+2;
+      ctx.fillStyle=P.coin;
+      ctx.beginPath(); ctx.ellipse(x,y,wob,7,0,0,7); ctx.fill();
+      ctx.fillStyle=P.coinShine;
+      ctx.beginPath(); ctx.ellipse(x-1,y-2,Math.max(1,wob-3),3,0,0,7); ctx.fill();
+      if (wob > 3){ ctx.fillStyle=P.coinJewel; ctx.fillRect(x-1,y,2,3); }
+    },
+  },
 };
 
 // shared puffy-cloud shape (surface background)

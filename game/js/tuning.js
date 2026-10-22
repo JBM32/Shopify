@@ -52,6 +52,13 @@ const TUNE = {
       dyRange: 60,                     // only fires when the player is this close vertically
       viewPad: 30,                     // only fires when on (or near) screen
     },
+    // (spud = zerox numbers, hotspud = guinea numbers — same behaviours, potato bodies)
+    fry: {
+      speed: 1.9,        // scurry speed — faster than you'd like
+      speedVar: 0.45,    // each fry gets ±half this as a speed multiplier (swarm spreads)
+      chaseRange: 320,   // px: re-aims at the player within this distance
+      turnDelay: 14,     // frames before a fry can re-aim (lets you jump over it)
+    },
   },
 
   projectiles: {
@@ -71,6 +78,23 @@ const TUNE = {
       fireCadence: 95, cadencePerHit: 7, cadenceMin: 55,
       fireSpeed: 2.9, fireLift: -1.1, fireLife: 210,
       contactCooldown: 30,
+    },
+    potato: {
+      w: 70, h: 64, maxHits: 6, arenaTiles: 12,
+      speedBase: 0.55, speedPerHit: 0.12,
+      stompWindow: 30, hitCooldown: 45, bounce: 11,  // stompable like Zerox...
+      // ...and fire breath works too (both count toward maxHits)
+      firstVolley: 80,                    // frames after the fight starts
+      cadence: 170, cadencePerHit: 14, cadenceMin: 95, // frames between fry volleys
+      windup: 34,                         // frames it quivers, mouth agape, before spewing
+      volleyBase: 3, volleyPerHit: 0.5,   // fries per volley (grows as it gets hurt)
+      maxFries: 9,                        // live minion cap
+      fryVX: 1.2, fryVXRand: 2.4,         // launch speed range
+      fryVY: 4.5, fryVYRand: 3,
+      backFryChance: 0.3,                 // share of fries flung behind it (pincer!)
+      fryLife: 60 * 9,                    // minion fries crumble after this
+      hopFromHit: 3,                      // from this many hits it hops after every 2nd volley
+      hopVY: 9.5, hopSpeedMult: 3.2,
     },
   },
 };

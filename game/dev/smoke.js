@@ -1,7 +1,7 @@
 // dev/smoke.js — headless end-to-end smoke test of Pixel Dash.
 // Usage: node game/dev/smoke.js        (needs Node + Playwright + Chromium)
 // Drives the real game in a browser via the window.PD debug handle and
-// asserts the whole loop: intro → menu → play → powerups → both boss fights
+// asserts the whole loop: intro → menu → play → powerups → all three boss fights
 // → win screen, with zero console errors. Run it after any gameplay change.
 const path = require('path');
 
@@ -85,7 +85,59 @@ function loadPlaywright(){
     return !PD.G.boss.alive && PD.G.barriers.length === 0;
   });
 
-  checks.winScreen = await page.evaluate(async () => {                 // touch the flag
+  checks.level2ClearScreen = await page.evaluate(async () => {         // touch the cave flag
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const p = PD.G.player;
+    p.x = PD.G.flag.x - 4; p.y = PD.G.flag.y + 10; p.vy = 0;
+    await sleep(300);
+    return PD.G.state === 'levelclear';
+  });
+
+  await page.keyboard.press('Enter');                                  // → level 3
+  await page.waitForTimeout(250);
+  checks.level3Castle = await page.evaluate(() =>
+    PD.G.state === 'play' && PD.G.levelIndex === 2 && PD.G.boss && PD.G.boss.kind === 'potato' &&
+    PD.G.enemies.some(e => e.kind === 'spud') && PD.G.enemies.some(e => e.kind === 'hotspud') &&
+    !PD.G.enemies.some(e => e.kind === 'zerox' || e.kind === 'guinea'));
+
+  checks.potatoSpewsFries = await page.evaluate(async () => {          // enter arena, wait for a volley
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const p = PD.G.player;
+    p.x = PD.G.boss.arenaL + 30; p.y = 8*24; p.vy = 0;
+    for (let i = 0; i < 60 && !PD.G.enemies.some(e => e.minion && e.alive); i++){
+      p.hurtT = 60; await sleep(100);
+    }
+    return PD.G.bossStarted && PD.G.enemies.some(e => e.kind === 'fry' && e.minion && e.alive);
+  });
+
+  checks.fryStompable = await page.evaluate(async () => {
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const f = PD.G.enemies.find(e => e.minion && e.alive), p = PD.G.player;
+    for (let i = 0; i < 10 && f.alive; i++){
+      p.x = f.x; p.y = f.y - p.h - 1; p.vy = 5; await sleep(30);
+    }
+    return !f.alive;
+  });
+
+  checks.potatoDies = await page.evaluate(async () => {               // stomps + fire both hurt it
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const b = PD.G.boss, p = PD.G.player;
+    p.fireCharges = 20;
+    for (let i = 0; i < 40 && b.alive && b.hits < 3; i++){           // fire first
+      p.x = b.x - 50; p.y = b.y + 30; p.face = 1; p.hurtT = 30;
+      PD.keys.fire = true; await sleep(60); PD.keys.fire = false; await sleep(60);
+    }
+    const fireOk = b.hits >= 3;
+    for (let i = 0; i < 60 && b.alive; i++){                          // then stomps
+      p.x = b.x + b.w/2; p.y = b.y - p.h - 2; p.vy = 6; p.hurtT = 30;
+      await sleep(100);
+    }
+    await sleep(100);
+    return fireOk && !b.alive && PD.G.barriers.length === 0 &&
+      !PD.G.enemies.some(e => e.minion && e.alive);                   // fries crumble with it
+  });
+
+  checks.winScreen = await page.evaluate(async () => {                 // touch the final flag
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     const p = PD.G.player;
     p.x = PD.G.flag.x - 4; p.y = PD.G.flag.y + 10; p.vy = 0;

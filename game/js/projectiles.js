@@ -1,4 +1,4 @@
-// projectiles.js — enemy fireballs (guinea pigs, Skeleton Lord) and the
+// projectiles.js — enemy fireballs (guinea pigs, hot potato men, Skeleton Lord) and the
 // player's fire breath. Spawn helpers + update/draw for both.
 "use strict";
 
